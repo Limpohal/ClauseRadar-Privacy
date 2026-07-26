@@ -814,9 +814,6 @@ compareRunBtn.addEventListener("click", async () => {
   }
 });
 
-// Default backend URL (deployed worker)
-const DEFAULT_BACKEND = "https://clauseradar.ahali-clauseradar.workers.dev";
-
 function getBackendUrl() {
   return DEFAULT_BACKEND;
 }
