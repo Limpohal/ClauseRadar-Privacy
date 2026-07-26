@@ -17,6 +17,7 @@
     <nav class="tabs" role="tablist">
       <button class="tab" data-tab="classify" role="tab" aria-selected="true">Classify</button>
       <button class="tab" data-tab="compare" role="tab" aria-selected="false">Compare</button>
+      <button class="tab" data-tab="history" role="tab" aria-selected="false">History</button>
       <button class="tab" data-tab="settings" role="tab" aria-selected="false">Settings</button>
     </nav>
   </header>
@@ -65,6 +66,16 @@
           <strong>Local storage:</strong> Your backend URL, device ID, and pending selection stay in <code>chrome.storage.local</code> on this device only.
         </p>
       </details>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="panel-history" class="panel" data-active="false">
+      <p class="hint">Your recent classifications and comparisons. Stored locally on this device.</p>
+      <div id="history-list" class="history-list"></div>
+      <div id="history-empty" class="history-empty" style="display: none;">
+        <p style="color: var(--ink-soft); text-align: center; padding: 24px 0;">No history yet. Classify or compare a clause to get started.</p>
+      </div>
+      <button id="history-clear" class="btn-secondary" style="margin-top: 12px; display: none;">Clear history</button>
     </section>
   </main>
 

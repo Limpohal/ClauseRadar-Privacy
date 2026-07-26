@@ -7,6 +7,7 @@ const tabs = document.querySelectorAll(".tab");
 const panels = {
   classify: document.getElementById("panel-classify"),
   compare: document.getElementById("panel-compare"),
+  history: document.getElementById("panel-history"),
   settings: document.getElementById("panel-settings")
 };
 
@@ -72,6 +73,151 @@ function updateQuotaDisplay(quota) {
   if (fillEl) fillEl.style.width = `${Math.min(100, (used / limit) * 100)}%`;
 }
 
+// ---------- History (local storage) ----------
+const HISTORY_KEY = "clauseradar_history";
+const MAX_HISTORY = 50;
+
+async function saveHistory(entry) {
+  const { [HISTORY_KEY]: history = [] } = await chrome.storage.local.get(HISTORY_KEY);
+  const newEntry = {
+    id: crypto.randomUUID(),
+    timestamp: Date.now(),
+    ...entry
+  };
+  const updated = [newEntry, ...history].slice(0, MAX_HISTORY);
+  await chrome.storage.local.set({ [HISTORY_KEY]: updated });
+}
+
+async function loadHistory() {
+  const { [HISTORY_KEY]: history = [] } = await chrome.storage.local.get(HISTORY_KEY);
+  return history;
+}
+
+async function clearHistory() {
+  await chrome.storage.local.remove(HISTORY_KEY);
+  renderHistory([]);
+}
+
+function formatTimestamp(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 60000) return "just now";
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function renderHistory(history) {
+  const listEl = document.getElementById("history-list");
+  const emptyEl = document.getElementById("history-empty");
+  const clearBtn = document.getElementById("history-clear");
+
+  if (!history.length) {
+    listEl.innerHTML = "";
+    emptyEl.style.display = "block";
+    clearBtn.style.display = "none";
+    return;
+  }
+
+  emptyEl.style.display = "none";
+  clearBtn.style.display = "inline-block";
+
+  listEl.innerHTML = history.map((item) => {
+    const isClassify = item.type === "classify";
+    const level = isClassify ? item.level : (item.rows?.[0]?.level || "mixed");
+    const levelClass = (level || "administrative").toLowerCase();
+    const preview = isClassify
+      ? truncate(item.text || "", 120)
+      : `${item.rows?.length || 0} changes`;
+
+    return `
+      <div class="history-item" data-id="${item.id}">
+        <div class="history-header">
+          <span class="history-type">${isClassify ? "Classify" : "Compare"}</span>
+          <span class="history-time">${formatTimestamp(item.timestamp)}</span>
+        </div>
+        <div class="history-preview">
+          <span class="history-stamp ${levelClass}">${level || "—"}</span>
+          <span class="history-text">${escapeHtml(preview)}</span>
+        </div>
+        ${item.sourceUrl ? `<a class="history-source" href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noopener">${escapeHtml(new URL(item.sourceUrl).hostname)}</a>` : ""}
+        <div class="history-actions">
+          <button class="history-copy" data-id="${item.id}" title="Copy as Markdown">Copy MD</button>
+          <button class="history-delete" data-id="${item.id}" title="Delete">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // Attach event listeners
+  listEl.querySelectorAll(".history-copy").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      copyHistoryAsMarkdown(e.target.dataset.id);
+    });
+  });
+  listEl.querySelectorAll(".history-delete").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await deleteHistoryItem(e.target.dataset.id);
+    });
+  });
+}
+
+async function deleteHistoryItem(id) {
+  const { [HISTORY_KEY]: history = [] } = await chrome.storage.local.get(HISTORY_KEY);
+  const updated = history.filter((item) => item.id !== id);
+  await chrome.storage.local.set({ [HISTORY_KEY]: updated });
+  renderHistory(updated);
+}
+
+async function copyHistoryAsMarkdown(id) {
+  const { [HISTORY_KEY]: history = [] } = await chrome.storage.local.get(HISTORY_KEY);
+  const item = history.find((h) => h.id === id);
+  if (!item) return;
+
+  let md = "";
+  if (item.type === "classify") {
+    md = `## ClauseRadar — Classification\n\n**Level:** ${item.level}\n\n**Rationale:** ${item.rationale}\n\n**Excerpt:**\n> ${item.text?.replace(/\n/g, "\n> ") || ""}\n\n---\n*Classified ${new Date(item.timestamp).toLocaleString()}*`;
+    if (item.sourceUrl) md += `\n*Source: ${item.sourceUrl}*`;
+  } else {
+    md = `## ClauseRadar — Comparison\n\n`;
+    (item.rows || []).forEach((row) => {
+      md += `### ${row.clause || "Change"}\n**Impact:** ${row.level}\n\n**Change:** ${row.change}\n\n---\n`;
+    });
+    md += `*Compared ${new Date(item.timestamp).toLocaleString()}*`;
+  }
+
+  await navigator.clipboard.writeText(md);
+  // Brief visual feedback
+  const btn = document.querySelector(`.history-copy[data-id="${id}"]`);
+  if (btn) {
+    const orig = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  }
+}
+
+async function refreshHistory() {
+  const history = await loadHistory();
+  renderHistory(history);
+}
+
+// Listen for storage changes from other contexts (e.g., background)
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes[HISTORY_KEY]) {
+    refreshHistory();
+  }
+});
+
+// Initial load
+refreshHistory();
+
+// Clear history button
+document.getElementById("history-clear")?.addEventListener("click", clearHistory);
+
 // ---------- Classify tab ----------
 const classifyInput = document.getElementById("classify-input");
 const classifyRunBtn = document.getElementById("classify-run");
@@ -107,6 +253,15 @@ async function runClassify(text) {
       rationale: data.rationale,
       excerpt: text
     });
+    // Save to history
+    await saveHistory({
+      type: "classify",
+      text,
+      level: data.level,
+      rationale: data.rationale,
+      sourceUrl: (await chrome.storage.local.get("pendingSelection")).pendingSelection?.sourceUrl || ""
+    });
+    refreshHistory();
   } catch (err) {
     classifyResult.innerHTML = `<p class="status-line error">${escapeHtml(err.message)}</p>`;
   } finally {
@@ -174,6 +329,14 @@ compareRunBtn.addEventListener("click", async () => {
   try {
     const data = await callBackend({ mode: "diff", textA, textB });
     renderDiffTable(compareResult, data.rows || []);
+    // Save to history
+    await saveHistory({
+      type: "diff",
+      textA,
+      textB,
+      rows: data.rows || []
+    });
+    refreshHistory();
   } catch (err) {
     compareResult.innerHTML = `<p class="status-line error">${escapeHtml(err.message)}</p>`;
   } finally {
