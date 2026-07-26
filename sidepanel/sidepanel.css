@@ -906,3 +906,72 @@ textarea:focus, input:focus {
   font-size: 10.5px;
   padding: 6px 10px;
 }
+
+/* --- Multi-framework stamp card --- */
+.stamp-card.multi-framework {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.framework-result {
+  border-top: 1px solid var(--rule);
+  padding-top: 12px;
+}
+.framework-result:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+.stamp-badge.framework {
+  background: var(--paper-tint);
+  color: var(--ink-soft);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-left: 4px;
+}
+
+/* --- Multi-framework diff table --- */
+.multi-framework-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.framework-diff-section {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: #fff;
+  overflow: hidden;
+}
+.framework-diff-section h4 {
+  margin: 0;
+  padding: 8px 12px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  background: var(--paper-tint);
+  border-bottom: 1px solid var(--rule);
+}
+
+/* --- Multi-framework document report --- */
+.multi-framework .framework-report-section {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: #fff;
+  margin-bottom: 12px;
+}
+.multi-framework .framework-report-section h3 {
+  margin: 0;
+  padding: 8px 12px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  background: var(--paper-tint);
+  border-bottom: 1px solid var(--rule);
+}
