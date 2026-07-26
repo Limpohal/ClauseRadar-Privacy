@@ -23,8 +23,17 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["contextMenus", "sidePanel", "storage", "activeTab"],
+  "permissions": ["contextMenus", "sidePanel", "storage", "activeTab", "scripting"],
   "host_permissions": [
     "https://clauseradar.ahali-clauseradar.workers.dev/*"
-  ]
+  ],
+  "commands": {
+    "classify-selection": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+C",
+        "mac": "Command+Shift+C"
+      },
+      "description": "Open ClauseRadar and classify selected text"
+    }
+  }
 }

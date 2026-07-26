@@ -24,6 +24,38 @@ chrome.runtime.onInstalled.addListener(() => {
     .catch(() => {});
 });
 
+// ── Keyboard shortcut: open panel + classify selection ──────────────────────────
+chrome.commands.onCommand.addListener((command) => {
+  if (command !== "classify-selection") return;
+
+  // Get the active tab in the current window
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    if (!tab?.id || !tab?.windowId) return;
+
+    // Execute script to get the current selection
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => window.getSelection().toString()
+    }, (results) => {
+      const selectionText = results?.[0]?.result?.trim();
+      if (!selectionText) return;
+
+      // Open side panel (must be synchronous with user gesture)
+      chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
+
+      // Store selection for the side panel to pick up
+      chrome.storage.local.set({
+        pendingSelection: {
+          text: selectionText,
+          sourceUrl: tab.url || "",
+          capturedAt: Date.now()
+        }
+      });
+    });
+  });
+});
+
 // ── Context menu: stash selection + open side panel ──────────────────────────
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId !== MENU_ID || !info.selectionText) return;
