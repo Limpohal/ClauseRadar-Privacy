@@ -135,6 +135,29 @@ textarea:focus, input:focus {
   cursor: not-allowed;
 }
 
+/* --- Framework selector --- */
+.settings-group {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 12px;
+  background: #fff;
+}
+.framework-select {
+  width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--ink);
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 13px;
+  padding: 10px;
+  margin-top: 4px;
+}
+.framework-select:focus {
+  outline: 2px solid var(--admin);
+  outline-offset: 1px;
+}
+
 .result-slot { margin-top: 6px; }
 
 /* --- Signature element: the document "stamp" --- */

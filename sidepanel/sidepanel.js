@@ -30,9 +30,22 @@ async function getDeviceId() {
 }
 
 // ---------- Backend URL ----------
-async function getBackendUrl() {
-  const { backendUrl } = await chrome.storage.local.get("backendUrl");
-  return backendUrl || DEFAULT_BACKEND;
+const DEFAULT_BACKEND = "https://clauseradar.ahali-clauseradar.workers.dev";
+
+function getBackendUrl() {
+  return DEFAULT_BACKEND;
+}
+
+// ---------- Framework setting ----------
+const FRAMEWORK_KEY = "clauseradar_framework";
+
+async function getFramework() {
+  const { framework } = await chrome.storage.local.get(FRAMEWORK_KEY);
+  return framework || "mdr";
+}
+
+async function saveFramework(framework) {
+  await chrome.storage.local.set({ [FRAMEWORK_KEY]: framework });
 }
 
 // ── Proxy API through background service worker ──────────────────────────────
@@ -44,12 +57,13 @@ async function callBackend(payload) {
     throw new Error("No backend URL configured. Set it in the Settings tab.");
   }
   const deviceId = await getDeviceId();
+  const framework = await getFramework();
 
   const response = await chrome.runtime.sendMessage({
     type: "analyze",
     backendUrl,
     deviceId,
-    payload
+    payload: { ...payload, framework }
   });
 
   if (!response.ok) {
@@ -612,6 +626,19 @@ function clearAllDrafts() {
 // Load drafts on startup
 loadDrafts();
 
+// Initialize framework selector
+async function initFrameworkSelector() {
+  const select = document.getElementById("framework-select");
+  if (select) {
+    const framework = await getFramework();
+    select.value = framework;
+    select.addEventListener("change", async () => {
+      await saveFramework(select.value);
+    });
+  }
+}
+initFrameworkSelector();
+
 // ---------- Classify tab ----------
 const classifyInput = document.getElementById("classify-input");
 const classifyRunBtn = document.getElementById("classify-run");
@@ -813,7 +840,3 @@ compareRunBtn.addEventListener("click", async () => {
     compareRunBtn.disabled = false;
   }
 });
-
-function getBackendUrl() {
-  return DEFAULT_BACKEND;
-}

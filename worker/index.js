@@ -65,11 +65,16 @@ export default {
     }
 
     // ---- Input validation ----
-    const { mode, text, textA, textB } = body;
+    const { mode, text, textA, textB, framework } = body;
     const validModes = ["classify", "diff", "diff-doc"];
+    const validFrameworks = ["mdr", "ivdr", "fda", "iso13485", "iso14971", "general"];
     if (!mode || !validModes.includes(mode)) {
       return json({ error: "mode must be 'classify', 'diff', or 'diff-doc'" }, 400, corsHeaders);
     }
+    if (framework && !validFrameworks.includes(framework)) {
+      return json({ error: "invalid framework" }, 400, corsHeaders);
+    }
+    const selectedFramework = framework || "mdr";
     if (mode === "classify") {
       if (!text || !text.trim()) {
         return json({ error: "text is required and must not be empty" }, 400, corsHeaders);
@@ -96,11 +101,11 @@ export default {
     let result;
     try {
       if (mode === "classify") {
-        result = await classify(text, env);
+        result = await classify(text, env, selectedFramework);
       } else if (mode === "diff") {
-        result = await diff(textA, textB, env);
+        result = await diff(textA, textB, env, selectedFramework);
       } else if (mode === "diff-doc") {
-        result = await diffDoc(textA, textB, env);
+        result = await diffDoc(textA, textB, env, selectedFramework);
       }
     } catch (err) {
       return json({ error: err.message || "Model call failed" }, 502, corsHeaders);
@@ -204,19 +209,107 @@ function validateResponse(obj, mode) {
   return null;
 }
 
-const CLASSIFY_SYSTEM = `You are a regulatory affairs assistant for medical device professionals.
+function getFrameworkPrompt(framework) {
+  const frameworks = {
+    mdr: `You are a regulatory affairs assistant for medical device professionals applying EU MDR 2017/745.
+Classify the significance of the given clause/paragraph exactly as: "Critical", "Minor", or "Administrative".
+- Critical: changes conformity requirements, safety/performance obligations (Annex I), or approval pathway.
+- Minor: changes process, documentation, or timelines without altering core obligations.
+- Administrative: wording, formatting, numbering, or non-substantive edits.
+Respond with ONLY valid JSON, no markdown: {"level": "...", "rationale": "one concise sentence"}`,
+    ivdr: `You are a regulatory affairs assistant for IVD professionals applying EU IVDR 2017/746.
+Classify the significance of the given clause/paragraph exactly as: "Critical", "Minor", or "Administrative".
+- Critical: changes conformity requirements, safety/performance obligations (Annex I), or approval pathway.
+- Minor: changes process, documentation, or timelines without altering core obligations.
+- Administrative: wording, formatting, numbering, or non-substantive edits.
+Respond with ONLY valid JSON, no markdown: {"level": "...", "rationale": "one concise sentence"}`,
+    fda: `You are a regulatory affairs assistant for medical device professionals applying FDA 21 CFR Part 820 (QSR).
+Classify the significance of the given clause/paragraph exactly as: "Critical", "Minor", or "Administrative".
+- Critical: changes regulatory requirements affecting safety/effectiveness, design controls (820.30), CAPA (820.100), or submission pathway (510(k)/PMA).
+- Minor: changes process, documentation, or timelines without altering core QSR obligations.
+- Administrative: wording, formatting, numbering, or non-substantive edits.
+Respond with ONLY valid JSON, no markdown: {"level": "...", "rationale": "one concise sentence"}`,
+    iso13485: `You are a regulatory affairs assistant for medical device professionals applying ISO 13485:2016.
+Classify the significance of the given clause/paragraph exactly as: "Critical", "Minor", or "Administrative".
+- Critical: changes QMS requirements affecting product conformity, risk management (clause 7.1), design/development (clause 7.3), or supplier controls (clause 7.4).
+- Minor: changes process, documentation, or timelines without altering core QMS obligations.
+- Administrative: wording, formatting, numbering, or non-substantive edits.
+Respond with ONLY valid JSON, no markdown: {"level": "...", "rationale": "one concise sentence"}`,
+    iso14971: `You are a regulatory affairs assistant for medical device professionals applying ISO 14971:2019.
+Classify the significance of the given clause/paragraph exactly as: "Critical", "Minor", or "Administrative".
+- Critical: changes risk management requirements affecting risk acceptability criteria, risk control measures, residual risk evaluation, or benefit-risk analysis.
+- Minor: changes risk management process, documentation, or timelines without altering core risk acceptability.
+- Administrative: wording, formatting, numbering, or non-substantive edits.
+Respond with ONLY valid JSON, no markdown: {"level": "...", "rationale": "one concise sentence"}`,
+    general: `You are a regulatory affairs assistant for medical device professionals.
 Classify the significance of the given clause/paragraph exactly as: "Critical", "Minor", or "Administrative".
 - Critical: changes conformity requirements, safety/performance obligations, or approval pathway.
 - Minor: changes process, documentation, or timelines without altering core obligations.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
-Respond with ONLY valid JSON, no markdown: {"level": "...", "rationale": "one concise sentence"}`;
-
-async function classify(text, env) {
-  if (!text || !text.trim()) throw new Error("No text provided");
-  return callModel(CLASSIFY_SYSTEM, text.slice(0, 4000), env, "classify");
+Respond with ONLY valid JSON, no markdown: {"level": "...", "rationale": "one concise sentence"}`
+  };
+  return frameworks[framework] || frameworks.general;
 }
 
-const DIFF_SYSTEM = `You are a regulatory affairs assistant for medical device professionals.
+async function classify(text, env, framework) {
+  if (!text || !text.trim()) throw new Error("No text provided");
+  return callModel(getFrameworkPrompt(framework), text.slice(0, 4000), env, "classify");
+}
+
+async function diff(textA, textB, env, framework) {
+  if (!textA || !textB) throw new Error("Both versions are required");
+  const userPrompt = `PREVIOUS EDITION:\n${textA.slice(0, 4000)}\n\nNEW EDITION:\n${textB.slice(0, 4000)}`;
+  return callModel(getDiffFrameworkPrompt(framework), userPrompt, env, "diff");
+}
+
+function getDiffFrameworkPrompt(framework) {
+  const prompts = {
+    mdr: `You are a regulatory affairs assistant for medical device professionals applying EU MDR 2017/745.
+Compare the previous and new versions of a regulatory clause. Break the comparison into
+individual clause-level changes. For each change, classify impact exactly as "Critical", "Minor", or "Administrative"
+using the same definitions as a standard gap analysis:
+- Critical: changes conformity requirements, safety/performance obligations (Annex I), or approval pathway.
+- Minor: changes process, documentation, or timelines without altering core obligations.
+- Administrative: wording, formatting, numbering, or non-substantive edits.
+Respond with ONLY valid JSON, no markdown:
+{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`,
+    ivdr: `You are a regulatory affairs assistant for IVD professionals applying EU IVDR 2017/746.
+Compare the previous and new versions of a regulatory clause. Break the comparison into
+individual clause-level changes. For each change, classify impact exactly as "Critical", "Minor", or "Administrative"
+using the same definitions as a standard gap analysis:
+- Critical: changes conformity requirements, safety/performance obligations (Annex I), or approval pathway.
+- Minor: changes process, documentation, or timelines without altering core obligations.
+- Administrative: wording, formatting, numbering, or non-substantive edits.
+Respond with ONLY valid JSON, no markdown:
+{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`,
+    fda: `You are a regulatory affairs assistant for medical device professionals applying FDA 21 CFR Part 820 (QSR).
+Compare the previous and new versions of a regulatory clause. Break the comparison into
+individual clause-level changes. For each change, classify impact exactly as "Critical", "Minor", or "Administrative"
+using the same definitions as a standard gap analysis:
+- Critical: changes regulatory requirements affecting safety/effectiveness, design controls (820.30), CAPA (820.100), or submission pathway (510(k)/PMA).
+- Minor: changes process, documentation, or timelines without altering core QSR obligations.
+- Administrative: wording, formatting, numbering, or non-substantive edits.
+Respond with ONLY valid JSON, no markdown:
+{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`,
+    iso13485: `You are a regulatory affairs assistant for medical device professionals applying ISO 13485:2016.
+Compare the previous and new versions of a regulatory clause. Break the comparison into
+individual clause-level changes. For each change, classify impact exactly as "Critical", "Minor", or "Administrative"
+using the same definitions as a standard gap analysis:
+- Critical: changes QMS requirements affecting product conformity, risk management (clause 7.1), design/development (clause 7.3), or supplier controls (clause 7.4).
+- Minor: changes process, documentation, or timelines without altering core QMS obligations.
+- Administrative: wording, formatting, numbering, or non-substantive edits.
+Respond with ONLY valid JSON, no markdown:
+{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`,
+    iso14971: `You are a regulatory affairs assistant for medical device professionals applying ISO 14971:2019.
+Compare the previous and new versions of a regulatory clause. Break the comparison into
+individual clause-level changes. For each change, classify impact exactly as "Critical", "Minor", or "Administrative"
+using the same definitions as a standard gap analysis:
+- Critical: changes risk management requirements affecting risk acceptability criteria, risk control measures, residual risk evaluation, or benefit-risk analysis.
+- Minor: changes risk management process, documentation, or timelines without altering core risk acceptability.
+- Administrative: wording, formatting, numbering, or non-substantive edits.
+Respond with ONLY valid JSON, no markdown:
+{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`,
+    general: `You are a regulatory affairs assistant for medical device professionals.
 Compare the previous and new versions of a regulatory clause. Break the comparison into
 individual clause-level changes. For each change, classify impact exactly as "Critical", "Minor", or "Administrative"
 using the same definitions as a standard gap analysis:
@@ -224,12 +317,9 @@ using the same definitions as a standard gap analysis:
 - Minor: changes process, documentation, or timelines without altering core obligations.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
 Respond with ONLY valid JSON, no markdown:
-{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`;
-
-async function diff(textA, textB, env) {
-  if (!textA || !textB) throw new Error("Both versions are required");
-  const userPrompt = `PREVIOUS EDITION:\n${textA.slice(0, 4000)}\n\nNEW EDITION:\n${textB.slice(0, 4000)}`;
-  return callModel(DIFF_SYSTEM, userPrompt, env, "diff");
+{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`
+  };
+  return prompts[framework] || prompts.general;
 }
 
 // ---- Document compare: segment + batch diff ----
@@ -266,17 +356,7 @@ function segmentDocument(text) {
   return segments.filter(s => s.text.length > 0);
 }
 
-const DIFF_DOC_SYSTEM = `You are a regulatory affairs assistant for medical device professionals.
-Compare the previous and new versions of a document segment. Break the comparison into
-individual clause-level changes. For each change, classify impact exactly as "Critical", "Minor", or "Administrative"
-using the same definitions as a standard gap analysis:
-- Critical: changes conformity requirements, safety/performance obligations, or approval pathway.
-- Minor: changes process, documentation, or timelines without altering core obligations.
-- Administrative: wording, formatting, numbering, or non-substantive edits.
-Respond with ONLY valid JSON, no markdown:
-{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`;
-
-async function diffDoc(textA, textB, env) {
+async function diffDoc(textA, textB, env, framework) {
   const segmentsA = segmentDocument(textA);
   const segmentsB = segmentDocument(textB);
 
@@ -293,7 +373,7 @@ async function diffDoc(textA, textB, env) {
 
     try {
       const userPrompt = `PREVIOUS EDITION:\n${segA.text.slice(0, 3000)}\n\nNEW EDITION:\n${segB.text.slice(0, 3000)}`;
-      const diffResult = await callModel(DIFF_DOC_SYSTEM, userPrompt, env, "diff");
+      const diffResult = await callModel(getDiffFrameworkPrompt(framework), userPrompt, env, "diff");
       sections.push({
         topLevel: segA.title || `Section ${i + 1}`,
         title: segA.title,

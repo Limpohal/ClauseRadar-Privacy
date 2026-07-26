@@ -98,6 +98,19 @@
         <div class="quota-bar"><div id="quota-fill" class="quota-fill"></div></div>
       </div>
 
+      <div class="settings-group" style="margin-top: 16px;">
+        <label class="field-label" for="framework-select">Regulatory Framework</label>
+        <select id="framework-select" class="framework-select">
+          <option value="mdr">EU MDR (Medical Device Regulation)</option>
+          <option value="ivdr">EU IVDR (In Vitro Diagnostic Regulation)</option>
+          <option value="fda">FDA 21 CFR Part 820 (QSR)</option>
+          <option value="iso13485">ISO 13485 (Medical Devices QMS)</option>
+          <option value="iso14971">ISO 14971 (Risk Management)</option>
+          <option value="general">General / Other</option>
+        </select>
+        <p class="hint" style="margin-top: 4px;">Select the jurisdiction/framework for classification. This affects the definitions of Critical/Minor/Administrative used by the AI.</p>
+      </div>
+
       <details class="data-note" style="margin-top: 16px;">
         <summary>Data handling</summary>
         <p style="font-size: 12px; color: var(--ink-soft); line-height: 1.5; margin: 8px 0 0 0;">
