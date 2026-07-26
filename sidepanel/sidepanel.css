@@ -248,3 +248,32 @@ textarea:focus, input:focus {
   background: var(--admin);
   transition: width 0.3s ease;
 }
+
+/* --- Data handling note --- */
+.data-note summary {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 4px 0;
+}
+.data-note summary::-webkit-details-marker { display: none; }
+.data-note summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 0.15s ease;
+}
+.data-note[open] summary::before { transform: rotate(90deg); }
+.data-note p { margin: 0; }
+.data-note a { color: var(--admin); text-decoration: none; }
+.data-note a:hover { text-decoration: underline; }
+.data-note code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  background: var(--paper-tint);
+  padding: 1px 4px;
+  border-radius: 2px;
+}

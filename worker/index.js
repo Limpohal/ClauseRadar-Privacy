@@ -13,11 +13,12 @@ const MODEL = "deepseek/deepseek-v4-flash";
 
 // Known extension ID (update if reinstalling)
 const EXTENSION_ID = "ihhclcjimmnboonghhgaddedaljcedlg";
+const ALLOWED_ORIGIN = `chrome-extension://${EXTENSION_ID}`;
 
 function getCorsHeaders(request) {
   const origin = request.headers.get("Origin") || "";
-  // Allow the specific extension origin or any chrome-extension:// origin
-  const allowOrigin = origin.startsWith("chrome-extension://") ? origin : `chrome-extension://${EXTENSION_ID}`;
+  // Strictly allow only the known extension origin
+  const allowOrigin = origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN;
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Headers": "Content-Type, X-Device-Id",
@@ -63,15 +64,33 @@ export default {
       return json({ error: "Invalid JSON body" }, 400, corsHeaders);
     }
 
-    const { mode } = body;
+    // ---- Input validation ----
+    const { mode, text, textA, textB } = body;
+    if (!mode || (mode !== "classify" && mode !== "diff")) {
+      return json({ error: "mode must be 'classify' or 'diff'" }, 400, corsHeaders);
+    }
+    if (mode === "classify") {
+      if (!text || !text.trim()) {
+        return json({ error: "text is required and must not be empty" }, 400, corsHeaders);
+      }
+      if (text.length > 10000) {
+        return json({ error: "text too long (max 10000 characters)" }, 400, corsHeaders);
+      }
+    } else if (mode === "diff") {
+      if (!textA || !textA.trim() || !textB || !textB.trim()) {
+        return json({ error: "both textA and textB are required and must not be empty" }, 400, corsHeaders);
+      }
+      if (textA.length > 10000 || textB.length > 10000) {
+        return json({ error: "text too long (max 10000 characters each)" }, 400, corsHeaders);
+      }
+    }
+
     let result;
     try {
       if (mode === "classify") {
-        result = await classify(body.text, env);
+        result = await classify(text, env);
       } else if (mode === "diff") {
-        result = await diff(body.textA, body.textB, env);
-      } else {
-        return json({ error: "mode must be 'classify' or 'diff'" }, 400, corsHeaders);
+        result = await diff(textA, textB, env);
       }
     } catch (err) {
       return json({ error: err.message || "Model call failed" }, 502, corsHeaders);
