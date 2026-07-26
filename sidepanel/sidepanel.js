@@ -439,7 +439,18 @@ function segmentDocument(text) {
 // ---- Document compare report rendering ----
 let currentReportSections = []; // store for filtering
 
-function renderDocReport(container, sections) {
+function renderDocReport(container, data) {
+  // Handle multi-framework response
+  if (data.frameworks && Array.isArray(data.frameworks)) {
+    return renderMultiFrameworkDocReport(container, data.frameworks);
+  }
+  
+  // Single framework (backward compatibility)
+  const sections = data.sections || [];
+  return renderSingleFrameworkDocReport(container, sections);
+}
+
+function renderSingleFrameworkDocReport(container, sections) {
   if (!sections.length) {
     container.innerHTML = `<p class="status-line">No comparable segments found.</p>`;
     return;
@@ -484,6 +495,63 @@ function renderDocReport(container, sections) {
 
   // Attach event listeners
   attachReportListeners(container, sections);
+}
+
+function renderMultiFrameworkDocReport(container, frameworks) {
+  if (!frameworks.length) {
+    container.innerHTML = `<p class="status-line">No comparable segments found.</p>`;
+    return;
+  }
+
+  // Flatten all sections for stats
+  let allSections = [];
+  frameworks.forEach(fw => {
+    (fw.sections || []).forEach(s => allSections.push({ ...s, framework: fw.framework }));
+  });
+  currentReportSections = allSections;
+
+  // Compute statistics
+  const stats = computeReportStats(allSections);
+
+  // Build filter toolbar
+  const filterHtml = `
+    <div class="doc-report-toolbar">
+      <div class="doc-report-stats">
+        <span class="stat"><span class="stat-value">${stats.totalSections}</span> sections</span>
+        <span class="stat"><span class="stat-value">${stats.totalChanges}</span> changes</span>
+        <span class="stat critical"><span class="stat-value">${stats.byLevel.critical}</span> Critical</span>
+        <span class="stat minor"><span class="stat-value">${stats.byLevel.minor}</span> Minor</span>
+        <span class="stat administrative"><span class="stat-value">${stats.byLevel.administrative}</span> Admin</span>
+      </div>
+      <div class="doc-report-filters">
+        <input type="text" id="doc-report-search" placeholder="Search clauses, changes…" class="doc-report-search">
+        <div class="doc-report-level-filters">
+          <label><input type="checkbox" value="critical" checked> Critical</label>
+          <label><input type="checkbox" value="minor" checked> Minor</label>
+          <label><input type="checkbox" value="administrative" checked> Administrative</label>
+        </div>
+      </div>
+    `;
+
+  // Build sections HTML per framework
+  let sectionsHtml = '';
+  frameworks.forEach(fw => {
+    sectionsHtml += `<div class="framework-report-section"><h3>${escapeHtml(fw.framework)}</h3>`;
+    sectionsHtml += buildSectionsHtml(fw.sections || []);
+    sectionsHtml += '</div>';
+  });
+
+  container.innerHTML = `
+    ${filterHtml}
+    <div class="doc-report multi-framework">${sectionsHtml}</div>
+    <div class="doc-report-actions">
+      <button class="btn-secondary" id="doc-report-copy">Copy as Markdown</button>
+      <button class="btn-secondary" id="doc-report-download">Download .md</button>
+    </div>
+  `;
+
+  // Attach event listeners (need to handle multi-framework)
+  attachReportListeners(container, allSections, frameworks);
 }
 
 function computeReportStats(sections) {
@@ -552,7 +620,9 @@ function buildSectionsHtml(sections) {
   }).join("");
 }
 
-function attachReportListeners(container, sections) {
+function attachReportListeners(container, sections, frameworks) {
+  const isMultiFramework = frameworks && Array.isArray(frameworks);
+
   // Search
   const searchInput = container.querySelector("#doc-report-search");
   const levelCheckboxes = container.querySelectorAll(".doc-report-level-filters input[type=checkbox]");
@@ -576,22 +646,21 @@ function attachReportListeners(container, sections) {
         if (matchesSearch && matchesLevel) anyVisible = true;
       });
       sectionEl.style.display = anyVisible ? "" : "none";
-    });
-  }
+    }
 
   searchInput?.addEventListener("input", applyFilters);
   levelCheckboxes.forEach(cb => cb.addEventListener("change", applyFilters));
 
   // Copy as Markdown
   container.querySelector("#doc-report-copy")?.addEventListener("click", () => {
-    const md = buildMarkdownReport(sections);
+    const md = isMultiFramework ? buildMultiFrameworkMarkdownReport(frameworks) : buildMarkdownReport(sections);
     navigator.clipboard.writeText(md);
     flashButton(container.querySelector("#doc-report-copy"), "Copied!");
   });
 
   // Download as .md file
   container.querySelector("#doc-report-download")?.addEventListener("click", () => {
-    const md = buildMarkdownReport(sections);
+    const md = isMultiFramework ? buildMultiFrameworkMarkdownReport(frameworks) : buildMarkdownReport(sections);
     const blob = new Blob([md], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -621,6 +690,44 @@ function buildMarkdownReport(sections) {
     } else {
       md += `*No significant changes detected.*\n\n---\n`;
     }
+  });
+  md += `\n*Compared ${new Date().toLocaleString()}*`;
+  return md;
+}
+
+function buildMultiFrameworkMarkdownReport(frameworks) {
+  let md = `# ClauseRadar — Document Comparison (Multi-Framework)\n\n`;
+  let totalSections = 0, totalChanges = 0;
+  const byLevel = { critical: 0, minor: 0, administrative: 0 };
+  
+  frameworks.forEach(fw => {
+    const stats = computeReportStats(fw.sections || []);
+    totalSections += stats.totalSections;
+    totalChanges += stats.totalChanges;
+    byLevel.critical += stats.byLevel.critical;
+    byLevel.minor += stats.byLevel.minor;
+    byLevel.administrative += stats.byLevel.administrative;
+  });
+  
+  md += `*Frameworks: ${frameworks.map(f => f.framework).join(", ")} | Sections: ${totalSections} | Changes: ${totalChanges} (Critical: ${byLevel.critical}, Minor: ${byLevel.minor}, Admin: ${byLevel.administrative})*\n\n---\n\n`;
+  
+  frameworks.forEach(fw => {
+    md += `# ${escapeHtml(fw.framework)}\n\n`;
+    (fw.sections || []).forEach(s => {
+      md += `## ${s.topLevel || s.title || "Section"}\n\n`;
+      if (s.rows && s.rows.length > 0) {
+        s.rows.forEach(r => {
+          md += `### ${r.clause || "Change"}\n**Impact:** ${r.level}\n\n**Change:** ${r.change}\n\n`;
+          if (r.citation) md += `**Citation:** ${r.citation}\n\n`;
+          if (r.confidence) md += `**Confidence:** ${r.confidence.charAt(0).toUpperCase() + r.confidence.slice(1)}\n\n`;
+          if (r.borderline) md += `**Borderline:** Yes\n\n`;
+          if (r.alternativeLevels && r.alternativeLevels.length > 0) md += `**Alternative levels to consider:** ${r.alternativeLevels.join(", ")}\n\n`;
+          md += `---\n`;
+        });
+      } else {
+        md += `*No significant changes detected.*\n\n---\n`;
+      }
+    });
   });
   md += `\n*Compared ${new Date().toLocaleString()}*`;
   return md;
@@ -684,17 +791,30 @@ classifyInput.addEventListener("input", () => {
   debouncedSaveDraft(DRAFT_CLASSIFY_KEY, classifyInput.value);
 });
 
-function renderStamp(container, { level, rationale, citation, confidence, borderline, alternativeLevels, excerpt }) {
+function renderStamp(container, data) {
+  // Check if multi-framework response
+  if (data.frameworks && Array.isArray(data.frameworks)) {
+    return renderMultiFrameworkStamp(container, data.frameworks, data.excerpt);
+  }
+  
+  // Single framework (backward compatibility)
+  const { level, rationale, citation, confidence, borderline, alternativeLevels, excerpt } = data;
+  return renderSingleFrameworkStamp(container, { level, rationale, citation, confidence, borderline, alternativeLevels, excerpt });
+}
+
+function renderSingleFrameworkStamp(container, { level, rationale, citation, confidence, borderline, alternativeLevels, excerpt, framework }) {
   const levelClass = (level || "administrative").toLowerCase();
   const confClass = (confidence || "medium").toLowerCase();
   const confLabel = confidence ? confidence.charAt(0).toUpperCase() + confidence.slice(1) : "Medium";
   const borderlineBadge = borderline ? `<span class="stamp-badge borderline" title="Borderline classification — could reasonably be another level">⚠ Borderline</span>` : "";
   const altLevels = alternativeLevels && alternativeLevels.length > 0 
     ? `<span class="stamp-badge alt-levels" title="Alternative levels to consider">${alternativeLevels.join(", ")}</span>` : "";
+  const frameworkBadge = framework ? `<span class="stamp-badge framework" title="Framework">${escapeHtml(framework)}</span>` : "";
 
   container.innerHTML = `
     <div class="stamp-card">
       <span class="stamp ${levelClass}">${level}</span>
+      ${frameworkBadge}
       ${borderlineBadge}
       ${altLevels}
       <p class="stamp-rationale">${escapeHtml(rationale)}</p>
@@ -711,6 +831,7 @@ function renderStamp(container, { level, rationale, citation, confidence, border
           data-confidence="${escapeHtml(confidence || "")}"
           data-borderline="${borderline}"
           data-alternative-levels="${escapeHtml((alternativeLevels || []).join(", "))}"
+          data-framework="${escapeHtml(framework || "")}"
           data-excerpt="${escapeHtml(excerpt || "")}" 
           title="Copy as Markdown">Copy as Markdown</button>
         <button class="btn-secondary stamp-override" title="Override classification">Override</button>
@@ -728,6 +849,7 @@ function renderStamp(container, { level, rationale, citation, confidence, border
       confidence: btn.dataset.confidence,
       borderline: btn.dataset.borderline === "true",
       alternativeLevels: btn.dataset.alternativeLevels ? btn.dataset.alternativeLevels.split(", ").filter(Boolean) : [],
+      framework: btn.dataset.framework,
       excerpt: btn.dataset.excerpt
     });
     navigator.clipboard.writeText(md);
@@ -745,13 +867,103 @@ function renderStamp(container, { level, rationale, citation, confidence, border
       confidence,
       borderline,
       alternativeLevels,
+      framework,
       excerpt: excerpt
     });
   });
 }
 
-function buildClassifyMarkdown({ level, rationale, citation, confidence, borderline, alternativeLevels, excerpt }) {
+function renderMultiFrameworkStamp(container, frameworks, excerpt) {
+  let html = `<div class="stamp-card multi-framework">`;
+  
+  frameworks.forEach(fw => {
+    const levelClass = (fw.level || "administrative").toLowerCase();
+    const confClass = (fw.confidence || "medium").toLowerCase();
+    const confLabel = fw.confidence ? fw.confidence.charAt(0).toUpperCase() + fw.confidence.slice(1) : "Medium";
+    const borderlineBadge = fw.borderline ? `<span class="stamp-badge borderline" title="Borderline classification — could reasonably be another level">⚠ Borderline</span>` : "";
+    const altLevels = fw.alternativeLevels && fw.alternativeLevels.length > 0 
+      ? `<span class="stamp-badge alt-levels" title="Alternative levels to consider">${fw.alternativeLevels.join(", ")}</span>` : "";
+    const frameworkBadge = `<span class="stamp-badge framework" title="Framework">${escapeHtml(fw.framework)}</span>`;
+    
+    html += `
+      <div class="framework-result">
+        <span class="stamp ${levelClass}">${fw.level}</span>
+        ${frameworkBadge}
+        ${borderlineBadge}
+        ${altLevels}
+        <p class="stamp-rationale">${escapeHtml(fw.rationale)}</p>
+        ${fw.citation ? `<p class="stamp-citation"><strong>Citation:</strong> ${escapeHtml(fw.citation)}</p>` : ""}
+        <div class="stamp-meta">
+          <span class="confidence ${confClass}" title="Model confidence">Confidence: ${confLabel}</span>
+        </div>
+      </div>
+    `;
+  });
+  
+  if (excerpt) {
+    html += `<p class="stamp-excerpt">${escapeHtml(truncate(excerpt, 220))}</p>`;
+  }
+  
+  html += `
+    <div class="stamp-actions">
+      <button class="btn-secondary stamp-copy" 
+        data-multi-framework="true"
+        data-excerpt="${escapeHtml(excerpt || "")}" 
+        title="Copy as Markdown">Copy as Markdown</button>
+      <button class="btn-secondary stamp-override" title="Override classification">Override</button>
+    </div>
+  </div>`;
+  
+  container.innerHTML = html;
+  
+  // Attach copy handler for multi-framework
+  container.querySelector(".stamp-copy").addEventListener("click", (e) => {
+    const btn = e.currentTarget;
+    const md = buildMultiFrameworkMarkdown(frameworks, btn.dataset.excerpt);
+    navigator.clipboard.writeText(md);
+    const orig = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
+  
+  // Attach override handler
+  container.querySelector(".stamp-override").addEventListener("click", (e) => {
+    // For multi-framework, use the first framework for override dialog
+    const firstFw = frameworks[0];
+    showOverrideDialog(container, {
+      level: firstFw.level,
+      rationale: firstFw.rationale,
+      citation: firstFw.citation,
+      confidence: firstFw.confidence,
+      borderline: firstFw.borderline,
+      alternativeLevels: firstFw.alternativeLevels,
+      framework: firstFw.framework,
+      excerpt: excerpt
+    });
+  });
+}
+
+function buildMultiFrameworkMarkdown(frameworks, excerpt) {
+  let md = `## ClauseRadar — Classification (Multi-Framework)\n\n`;
+  
+  frameworks.forEach(fw => {
+    md += `### ${escapeHtml(fw.framework)}\n\n`;
+    md += `**Level:** ${fw.level}\n\n`;
+    md += `**Rationale:** ${fw.rationale}\n\n`;
+    if (fw.citation) md += `**Citation:** ${fw.citation}\n\n`;
+    if (fw.confidence) md += `**Confidence:** ${fw.confidence.charAt(0).toUpperCase() + fw.confidence.slice(1)}\n\n`;
+    if (fw.borderline) md += `**Borderline:** Yes\n\n`;
+    if (fw.alternativeLevels && fw.alternativeLevels.length > 0) md += `**Alternative levels to consider:** ${fw.alternativeLevels.join(", ")}\n\n`;
+  });
+  
+  if (excerpt) md += `**Excerpt:**\n> ${excerpt.replace(/\n/g, "\n> ")}\n\n`;
+  md += `---\n*Classified ${new Date().toLocaleString()}*`;
+  return md;
+}
+
+function buildClassifyMarkdown({ level, rationale, citation, confidence, borderline, alternativeLevels, framework, excerpt }) {
   let md = `## ClauseRadar — Classification\n\n`;
+  if (framework) md += `**Framework:** ${framework}\n\n`;
   md += `**Level:** ${level}\n\n`;
   md += `**Rationale:** ${rationale}\n\n`;
   if (citation) md += `**Citation:** ${citation}\n\n`;
@@ -837,25 +1049,15 @@ async function runClassify(text) {
   classifyResult.innerHTML = `<p class="status-line">Classifying\u2026</p>`;
   try {
     const data = await callBackend({ mode: "classify", text }, "panel-classify");
-    renderStamp(classifyResult, {
-      level: data.level,
-      rationale: data.rationale,
-      citation: data.citation,
-      confidence: data.confidence,
-      borderline: data.borderline,
-      alternativeLevels: data.alternativeLevels,
-      excerpt: text
-    });
+    
+    // Pass full data to renderStamp (it handles both single and multi-framework)
+    renderStamp(classifyResult, { ...data, excerpt: text });
+    
     // Save to history
     await saveHistory({
       type: "classify",
       text,
-      level: data.level,
-      rationale: data.rationale,
-      citation: data.citation,
-      confidence: data.confidence,
-      borderline: data.borderline,
-      alternativeLevels: data.alternativeLevels,
+      ...data, // Include all data (single or multi-framework)
       sourceUrl: (await chrome.storage.local.get("pendingSelection")).pendingSelection?.sourceUrl || ""
     });
     refreshHistory();
@@ -907,7 +1109,18 @@ compareB.addEventListener("input", () => {
   debouncedSaveDraft(DRAFT_COMPARE_B_KEY, compareB.value);
 });
 
-function renderDiffTable(container, rows) {
+function renderDiffTable(container, data) {
+  // Handle multi-framework response
+  if (data.frameworks && Array.isArray(data.frameworks)) {
+    return renderMultiFrameworkDiffTable(container, data.frameworks);
+  }
+  
+  // Single framework (backward compatibility)
+  const rows = data.rows || [];
+  return renderSingleFrameworkDiffTable(container, rows);
+}
+
+function renderSingleFrameworkDiffTable(container, rows) {
   const body = rows.map((r) => {
     const badge = r.borderline ? `<span class="borderline-badge" title="Borderline classification">⚠</span>` : "";
     const confidenceLabel = r.confidence ? `<span class="confidence-badge confidence-${r.confidence}">${r.confidence.charAt(0).toUpperCase() + r.confidence.slice(1)}</span>` : "";
@@ -952,6 +1165,75 @@ function renderDiffTable(container, rows) {
   });
 }
 
+function renderMultiFrameworkDiffTable(container, frameworks) {
+  let html = `<div class="multi-framework-diff">`;
+  
+  frameworks.forEach(fw => {
+    html += `<div class="framework-diff-section"><h4>${escapeHtml(fw.framework)}</h4>`;
+    
+    if (!fw.rows || fw.rows.length === 0) {
+      html += `<p class="status-line">No significant changes detected.</p></div>`;
+      return;
+    }
+    
+    const body = fw.rows.map(r => {
+      const badge = r.borderline ? `<span class="borderline-badge" title="Borderline classification">⚠</span>` : "";
+      const confidenceLabel = r.confidence ? `<span class="confidence-badge confidence-${r.confidence}">${r.confidence.charAt(0).toUpperCase() + r.confidence.slice(1)}</span>` : "";
+      const altLevels = r.alternativeLevels && r.alternativeLevels.length > 0 
+        ? `<span class="alt-levels-badge" title="Alternative levels to consider">${r.alternativeLevels.join(", ")}</span>` 
+        : "";
+      return `
+        <tr data-citation="${escapeHtml(r.citation || "")}">
+          <td>${escapeHtml(r.clause || "")}</td>
+          <td>${escapeHtml(r.change || "")}${r.citation ? `<div class="diff-citation">Citation: ${escapeHtml(r.citation)}</div>` : ""}</td>
+          <td><span class="diff-tag ${(r.level || "administrative").toLowerCase()}">${escapeHtml(r.level || "")}</span> ${badge} ${confidenceLabel} ${altLevels}</td>
+        </tr>
+      `;
+    }).join("");
+    
+    html += `
+      <table class="diff-table">
+        <thead><tr><th>Clause</th><th>What changed</th><th>Impact</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>`;
+  });
+  
+  html += `
+    <div class="diff-actions">
+      <button class="btn-secondary diff-copy" title="Copy as Markdown">Copy as Markdown</button>
+    </div>
+  </div>`;
+  
+  container.innerHTML = html;
+  
+  // Attach copy handler for multi-framework
+  container.querySelector(".diff-copy").addEventListener("click", () => {
+    let md = `## ClauseRadar — Comparison (Multi-Framework)\n\n`;
+    frameworks.forEach(fw => {
+      md += `### ${escapeHtml(fw.framework)}\n\n`;
+      if (!fw.rows || fw.rows.length === 0) {
+        md += `*No significant changes detected.*\n\n`;
+        return;
+      }
+      fw.rows.forEach(row => {
+        md += `#### ${row.clause || "Change"}\n**Impact:** ${row.level}\n\n**Change:** ${row.change}\n`;
+        if (row.citation) md += `**Citation:** ${row.citation}\n`;
+        if (row.confidence) md += `**Confidence:** ${row.confidence.charAt(0).toUpperCase() + row.confidence.slice(1)}\n`;
+        if (row.borderline) md += `**Borderline:** Yes\n`;
+        if (row.alternativeLevels && row.alternativeLevels.length > 0) md += `**Alternative levels to consider:** ${row.alternativeLevels.join(", ")}\n`;
+        md += `\n---\n`;
+      });
+    });
+    md += `*Compared ${new Date().toLocaleString()}*`;
+    navigator.clipboard.writeText(md);
+    const btn = container.querySelector(".diff-copy");
+    const orig = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
+}
+
 compareRunBtn.addEventListener("click", async () => {
   const isDocumentMode = document.querySelector('input[name="compare-mode"]:checked')?.value === "document";
 
@@ -967,13 +1249,13 @@ compareRunBtn.addEventListener("click", async () => {
     compareResult.innerHTML = `<p class="status-line">Segmenting and comparing documents\u2026</p>`;
     try {
       const data = await callBackend({ mode: "diff-doc", textA, textB }, "panel-compare");
-      renderDocReport(compareResult, data.sections || []);
+      renderDocReport(compareResult, data);
       // Save to history
       await saveHistory({
         type: "diff-doc",
         textA,
         textB,
-        sections: data.sections || []
+        ...data
       });
       refreshHistory();
     } catch (err) {
@@ -995,13 +1277,13 @@ compareRunBtn.addEventListener("click", async () => {
   compareResult.innerHTML = `<p class="status-line">Comparing versions\u2026</p>`;
   try {
     const data = await callBackend({ mode: "diff", textA, textB }, "panel-compare");
-    renderDiffTable(compareResult, data.rows || []);
+    renderDiffTable(compareResult, data);
     // Save to history
     await saveHistory({
       type: "diff",
       textA,
       textB,
-      rows: data.rows || []
+      ...data
     });
     refreshHistory();
   } catch (err) {
