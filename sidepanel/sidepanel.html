@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ClauseRadar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="wordmark">
+      <span class="wordmark-tick">§</span>
+      <span>ClauseRadar</span>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab" data-tab="classify" role="tab" aria-selected="true">Classify</button>
+      <button class="tab" data-tab="compare" role="tab" aria-selected="false">Compare</button>
+      <button class="tab" data-tab="settings" role="tab" aria-selected="false">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- CLASSIFY -->
+    <section id="panel-classify" class="panel" data-active="true">
+      <p class="hint">Select a clause on any page, right-click, and choose <strong>Classify regulatory impact</strong>. Or paste text directly below.</p>
+      <textarea id="classify-input" placeholder="Paste a clause or paragraph here…"></textarea>
+      <button id="classify-run" class="btn-primary">Classify impact</button>
+      <div id="classify-result" class="result-slot" aria-live="polite"></div>
+    </section>
+
+    <!-- COMPARE -->
+    <section id="panel-compare" class="panel" data-active="false">
+      <p class="hint">Paste the old and new clause text to get a structured, significance-rated comparison.</p>
+      <label class="field-label" for="compare-a">Previous edition</label>
+      <textarea id="compare-a" placeholder="Paste the old clause text…"></textarea>
+      <label class="field-label" for="compare-b">New edition</label>
+      <textarea id="compare-b" placeholder="Paste the new clause text…"></textarea>
+      <button id="compare-run" class="btn-primary">Compare versions</button>
+      <div id="compare-result" class="result-slot" aria-live="polite"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="panel-settings" class="panel" data-active="false">
+      <p class="hint">ClauseRadar calls a hosted backend, no personal API key required. You get a limited number of free classifications per day.</p>
+      <div class="quota-box">
+        <div class="quota-row">
+          <span>Today's usage</span>
+          <span id="quota-count">–</span>
+        </div>
+        <div class="quota-bar"><div id="quota-fill" class="quota-fill"></div></div>
+      </div>
+      <label class="field-label" for="backend-url">Backend URL</label>
+      <input id="backend-url" type="text" placeholder="https://your-worker.workers.dev" />
+      <button id="settings-save" class="btn-secondary">Save</button>
+      <div id="settings-status" class="status-line"></div>
+    </section>
+  </main>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

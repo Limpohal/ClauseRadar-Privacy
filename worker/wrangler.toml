@@ -1,0 +1,12 @@
+name = "clauseradar"
+main = "index.js"
+compatibility_date = "2026-01-01"
+
+# Create with: wrangler kv namespace create RATE_LIMIT
+# then paste the id below.
+kv_namespaces = [
+  { binding = "RATE_LIMIT", id = "3c9bf30980634f85a8d155f2c9a55cd8" }
+]
+
+# Set the secret separately, don't put it in this file:
+#   wrangler secret put OPENROUTER_API_KEY
