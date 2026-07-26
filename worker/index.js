@@ -65,16 +65,24 @@ export default {
     }
 
     // ---- Input validation ----
-    const { mode, text, textA, textB, framework } = body;
+    const { mode, text, textA, textB, frameworks } = body;
     const validModes = ["classify", "diff", "diff-doc"];
-    const validFrameworks = ["mdr", "ivdr", "fda", "iso13485", "iso14971", "general"];
+    const validFrameworkValues = ["EU MDR", "FDA", "ISO", "EN", "ASTM", "PPER", "General or Others"];
     if (!mode || !validModes.includes(mode)) {
       return json({ error: "mode must be 'classify', 'diff', or 'diff-doc'" }, 400, corsHeaders);
     }
-    if (framework && !validFrameworks.includes(framework)) {
-      return json({ error: "invalid framework" }, 400, corsHeaders);
+    // Validate frameworks array if provided
+    if (frameworks !== undefined) {
+      if (!Array.isArray(frameworks)) {
+        return json({ error: "frameworks must be an array" }, 400, corsHeaders);
+      }
+      for (const fw of frameworks) {
+        if (!validFrameworkValues.includes(fw)) {
+          return json({ error: `invalid framework: ${fw}` }, 400, corsHeaders);
+        }
+      }
     }
-    const selectedFramework = framework || "mdr";
+    const selectedFrameworks = frameworks && frameworks.length > 0 ? frameworks : ["EU MDR"];
     if (mode === "classify") {
       if (!text || !text.trim()) {
         return json({ error: "text is required and must not be empty" }, 400, corsHeaders);
@@ -101,11 +109,11 @@ export default {
     let result;
     try {
       if (mode === "classify") {
-        result = await classify(text, env, selectedFramework);
+        result = await classify(text, env, selectedFrameworks);
       } else if (mode === "diff") {
-        result = await diff(textA, textB, env, selectedFramework);
+        result = await diff(textA, textB, env, selectedFrameworks);
       } else if (mode === "diff-doc") {
-        result = await diffDoc(textA, textB, env, selectedFramework);
+        result = await diffDoc(textA, textB, env, selectedFrameworks);
       }
     } catch (err) {
       return json({ error: err.message || "Model call failed" }, 502, corsHeaders);
@@ -189,51 +197,89 @@ async function callModel(systemPrompt, userPrompt, env, mode) {
 function validateResponse(obj, mode) {
   if (!obj || typeof obj !== "object") return "Response is not an object";
 
+  // Check if response has multi-framework format
+  if (obj.frameworks && Array.isArray(obj.frameworks)) {
+    for (const fwResult of obj.frameworks) {
+      if (!fwResult.framework || typeof fwResult.framework !== "string") {
+        return "Multi-framework result missing 'framework' field";
+      }
+      // Validate each framework result
+      if (mode === "classify") {
+        const error = validateClassifyResult(fwResult);
+        if (error) return error;
+      } else if (mode === "diff") {
+        const error = validateDiffResult(fwResult);
+        if (error) return error;
+      }
+    }
+    return null;
+  }
+
+  // Single framework format (backward compatibility)
   if (mode === "classify") {
-    if (!obj.level || !["Critical", "Minor", "Administrative"].includes(obj.level)) {
-      return "Missing or invalid 'level' (must be Critical, Minor, or Administrative)";
-    }
-    if (!obj.rationale || typeof obj.rationale !== "string" || !obj.rationale.trim()) {
-      return "Missing or empty 'rationale'";
-    }
-    // Optional new fields: citation, confidence, borderline, alternativeLevels
-    if (obj.confidence !== undefined && !["high", "medium", "low"].includes(obj.confidence)) {
-      return "Invalid 'confidence' (must be high, medium, or low)";
-    }
-    if (obj.borderline !== undefined && typeof obj.borderline !== "boolean") {
-      return "Invalid 'borderline' (must be boolean)";
-    }
-    if (obj.alternativeLevels !== undefined) {
-      if (!Array.isArray(obj.alternativeLevels) || !obj.alternativeLevels.every(l => ["Critical", "Minor", "Administrative"].includes(l))) {
-        return "Invalid 'alternativeLevels' (must be array of Critical/Minor/Administrative)";
-      }
-    }
+    return validateClassifyResult(obj);
   } else if (mode === "diff") {
-    if (!Array.isArray(obj.rows)) return "Missing 'rows' array";
-    for (const row of obj.rows) {
-      if (!row.clause || typeof row.clause !== "string") return "Row missing 'clause'";
-      if (!row.change || typeof row.change !== "string") return "Row missing 'change'";
-      if (!row.level || !["Critical", "Minor", "Administrative"].includes(row.level)) {
-        return "Row has missing or invalid 'level'";
-      }
-      // Optional new fields per row
-      if (row.confidence !== undefined && !["high", "medium", "low"].includes(row.confidence)) {
-        return "Row invalid 'confidence' (must be high, medium, or low)";
-      }
-      if (row.borderline !== undefined && typeof row.borderline !== "boolean") {
-        return "Row invalid 'borderline' (must be boolean)";
-      }
-      if (row.alternativeLevels !== undefined) {
-        if (!Array.isArray(row.alternativeLevels) || !row.alternativeLevels.every(l => ["Critical", "Minor", "Administrative"].includes(l))) {
-          return "Row invalid 'alternativeLevels'";
-        }
+    return validateDiffResult(obj);
+  }
+  return null;
+}
+
+function validateClassifyResult(obj) {
+  if (!obj.level || !["Critical", "Minor", "Administrative"].includes(obj.level)) {
+    return "Missing or invalid 'level' (must be Critical, Minor, or Administrative)";
+  }
+  if (!obj.rationale || typeof obj.rationale !== "string" || !obj.rationale.trim()) {
+    return "Missing or empty 'rationale'";
+  }
+  if (obj.confidence !== undefined && !["high", "medium", "low"].includes(obj.confidence)) {
+    return "Invalid 'confidence' (must be high, medium, or low)";
+  }
+  if (obj.borderline !== undefined && typeof obj.borderline !== "boolean") {
+    return "Invalid 'borderline' (must be boolean)";
+  }
+  if (obj.alternativeLevels !== undefined) {
+    if (!Array.isArray(obj.alternativeLevels) || !obj.alternativeLevels.every(l => ["Critical", "Minor", "Administrative"].includes(l))) {
+      return "Invalid 'alternativeLevels' (must be array of Critical/Minor/Administrative)";
+    }
+  }
+  return null;
+}
+
+function validateDiffResult(obj) {
+  if (!Array.isArray(obj.rows)) return "Missing 'rows' array";
+  for (const row of obj.rows) {
+    if (!row.clause || typeof row.clause !== "string") return "Row missing 'clause'";
+    if (!row.change || typeof row.change !== "string") return "Row missing 'change'";
+    if (!row.level || !["Critical", "Minor", "Administrative"].includes(row.level)) {
+      return "Row has missing or invalid 'level'";
+    }
+    if (row.confidence !== undefined && !["high", "medium", "low"].includes(row.confidence)) {
+      return "Row invalid 'confidence' (must be high, medium, or low)";
+    }
+    if (row.borderline !== undefined && typeof row.borderline !== "boolean") {
+      return "Row invalid 'borderline' (must be boolean)";
+    }
+    if (row.alternativeLevels !== undefined) {
+      if (!Array.isArray(row.alternativeLevels) || !row.alternativeLevels.every(l => ["Critical", "Minor", "Administrative"].includes(l))) {
+        return "Row invalid 'alternativeLevels'";
       }
     }
   }
   return null;
 }
 
-function getFrameworkPrompt(framework) {
+// Map framework display names to internal keys
+const FRAMEWORK_KEYS = {
+  "EU MDR": "mdr",
+  "FDA": "fda",
+  "ISO": "iso13485",
+  "EN": "mdr", // EN standards are harmonized under MDR/IVDR
+  "ASTM": "general", // ASTM test methods, use general with specific note
+  "PPER": "general", // PPER - use general
+  "General or Others": "general"
+};
+
+function getFrameworkPrompt(frameworkKey) {
   const frameworks = {
     mdr: `You are a regulatory affairs assistant for medical device professionals applying EU MDR 2017/745.
 Classify the significance of the given clause/paragraph exactly as: "Critical", "Minor", or "Administrative".
@@ -275,15 +321,47 @@ Classify the significance of the given clause/paragraph exactly as: "Critical", 
 - Critical: changes conformity requirements, safety/performance obligations, or approval pathway.
 - Minor: changes process, documentation, or timelines without altering core obligations.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
+IMPORTANT: Use "General or Others" ONLY when no other listed tag genuinely applies. If you use it, name the actual regulation or standard you have in mind within the rationale text, rather than leaving the answer vague.
 Respond with ONLY valid JSON, no markdown:
 {"level": "...", "rationale": "one concise sentence", "citation": "exact phrase or concept from the text that triggered this classification", "confidence": "high|medium|low", "borderline": false, "alternativeLevels": []}`
   };
-  return frameworks[framework] || frameworks.general;
+  return frameworks[frameworkKey] || frameworks.general;
 }
 
-async function classify(text, env, framework) {
+async function classifyForFramework(text, env, frameworkKey) {
   if (!text || !text.trim()) throw new Error("No text provided");
-  return callModel(getFrameworkPrompt(framework), text.slice(0, 4000), env, "classify");
+  return callModel(getFrameworkPrompt(frameworkKey), text.slice(0, 4000), env, "classify");
+}
+
+async function classify(text, env, frameworks) {
+  // If only one framework, return single result for backward compatibility
+  if (frameworks.length === 1) {
+    const frameworkKey = FRAMEWORK_KEYS[frameworks[0]] || "mdr";
+    const result = await classifyForFramework(text, env, frameworkKey);
+    return { ...result, framework: frameworks[0] };
+  }
+  
+  // Multiple frameworks: get result for each
+  const results = [];
+  for (const fw of frameworks) {
+    const frameworkKey = FRAMEWORK_KEYS[fw] || "mdr";
+    try {
+      const result = await classifyForFramework(text, env, frameworkKey);
+      results.push({ framework: fw, ...result });
+    } catch (err) {
+      results.push({ 
+        framework: fw, 
+        level: "Administrative", 
+        rationale: `Error classifying for ${fw}: ${err.message}`,
+        citation: "",
+        confidence: "low",
+        borderline: false,
+        alternativeLevels: []
+      });
+    }
+  }
+  
+  return { frameworks: results };
 }
 
 async function diff(textA, textB, env, framework) {
@@ -346,47 +424,46 @@ using the same definitions as a standard gap analysis:
 - Critical: changes conformity requirements, safety/performance obligations, or approval pathway.
 - Minor: changes process, documentation, or timelines without altering core obligations.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
+IMPORTANT: Use "General or Others" ONLY when no other listed tag genuinely applies. If you use it, name the actual regulation or standard you have in mind within the rationale text, rather than leaving the answer vague.
 Respond with ONLY valid JSON, no markdown:
 {"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "...", "citation": "exact phrase from old or new text that triggered this", "confidence": "high|medium|low", "borderline": false, "alternativeLevels": []}]}`
   };
   return prompts[framework] || prompts.general;
 }
 
-// ---- Document compare: segment + batch diff ----
-function segmentDocument(text) {
-  const lines = text.split(/\r?\n/);
-  const segments = [];
-  let currentSegment = [];
-  let currentTitle = "Document Start";
-
-  for (const line of lines) {
-    const headingMatch = line.match(/^(#{2,3})\s+(.+)$/);
-    const clauseMatch = line.match(/^(\d+(\.\d+)*\.?)\s+(.+)$/);
-    const articleMatch = line.match(/^(Article|Section|Clause|Chapter)\s+\d+/i);
-
-    if (headingMatch || clauseMatch || articleMatch) {
-      if (currentSegment.length > 0) {
-        segments.push({
-          title: currentTitle,
-          text: currentSegment.join("\n").trim()
-        });
-      }
-      currentTitle = (headingMatch ? headingMatch[2] : (clauseMatch ? clauseMatch[1] : line.trim())).trim();
-      currentSegment = [line];
-    } else {
-      currentSegment.push(line);
-    }
-  }
-  if (currentSegment.length > 0) {
-    segments.push({
-      title: currentTitle,
-      text: currentSegment.join("\n").trim()
-    });
-  }
-  return segments.filter(s => s.text.length > 0);
+async function diffForFramework(textA, textB, env, frameworkKey) {
+  if (!textA || !textB) throw new Error("Both versions are required");
+  const userPrompt = `PREVIOUS EDITION:\n${textA.slice(0, 4000)}\n\nNEW EDITION:\n${textB.slice(0, 4000)}`;
+  return callModel(getDiffFrameworkPrompt(frameworkKey), userPrompt, env, "diff");
 }
 
-async function diffDoc(textA, textB, env, framework) {
+async function diff(textA, textB, env, frameworks) {
+  // If only one framework, return single result for backward compatibility
+  if (frameworks.length === 1) {
+    const frameworkKey = FRAMEWORK_KEYS[frameworks[0]] || "mdr";
+    const result = await diffForFramework(textA, textB, env, frameworkKey);
+    return { ...result, framework: frameworks[0] };
+  }
+  
+  // Multiple frameworks: get result for each
+  const results = [];
+  for (const fw of frameworks) {
+    const frameworkKey = FRAMEWORK_KEYS[fw] || "mdr";
+    try {
+      const result = await diffForFramework(textA, textB, env, frameworkKey);
+      results.push({ framework: fw, ...result });
+    } catch (err) {
+      results.push({ 
+        framework: fw, 
+        rows: [{ clause: "Comparison", change: `Error comparing for ${fw}: ${err.message}`, level: "Administrative" }]
+      });
+    }
+  }
+  
+  return { frameworks: results };
+}
+
+async function diffDocForFramework(textA, textB, env, frameworkKey) {
   const segmentsA = segmentDocument(textA);
   const segmentsB = segmentDocument(textB);
 
@@ -403,7 +480,7 @@ async function diffDoc(textA, textB, env, framework) {
 
     try {
       const userPrompt = `PREVIOUS EDITION:\n${segA.text.slice(0, 3000)}\n\nNEW EDITION:\n${segB.text.slice(0, 3000)}`;
-      const diffResult = await callModel(getDiffFrameworkPrompt(framework), userPrompt, env, "diff");
+      const diffResult = await callModel(getDiffFrameworkPrompt(frameworkKey), userPrompt, env, "diff");
       sections.push({
         topLevel: segA.title || `Section ${i + 1}`,
         title: segA.title,
@@ -420,4 +497,30 @@ async function diffDoc(textA, textB, env, framework) {
   }
 
   return { sections };
+}
+
+async function diffDoc(textA, textB, env, frameworks) {
+  // If only one framework, return single result for backward compatibility
+  if (frameworks.length === 1) {
+    const frameworkKey = FRAMEWORK_KEYS[frameworks[0]] || "mdr";
+    const result = await diffDocForFramework(textA, textB, env, frameworkKey);
+    return { ...result, framework: frameworks[0] };
+  }
+  
+  // Multiple frameworks: get result for each
+  const results = [];
+  for (const fw of frameworks) {
+    const frameworkKey = FRAMEWORK_KEYS[fw] || "mdr";
+    try {
+      const result = await diffDocForFramework(textA, textB, env, frameworkKey);
+      results.push({ framework: fw, ...result });
+    } catch (err) {
+      results.push({ 
+        framework: fw, 
+        sections: [{ topLevel: "Error", title: "Error", rows: [{ clause: "Comparison", change: `Error comparing for ${fw}: ${err.message}`, level: "Administrative" }] }]
+      });
+    }
+  }
+  
+  return { frameworks: results };
 }
