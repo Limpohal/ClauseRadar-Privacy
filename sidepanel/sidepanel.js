@@ -52,6 +52,11 @@ function initFrameworkCheckboxes(containerId) {
   
   const checkboxes = container.querySelectorAll('input[name="framework"]');
   
+  // Set default immediately (EU MDR) before async load
+  checkboxes.forEach(cb => {
+    cb.checked = cb.value === "EU MDR";
+  });
+  
   // Load saved frameworks
   getFrameworks().then(saved => {
     checkboxes.forEach(cb => {
@@ -74,8 +79,9 @@ function initFrameworkCheckboxes(containerId) {
 function getSelectedFrameworks(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return ["EU MDR"];
-  return Array.from(container.querySelectorAll('input[name="framework"]:checked'))
+  const checked = Array.from(container.querySelectorAll('input[name="framework"]:checked'))
     .map(cb => cb.value);
+  return checked.length > 0 ? checked : ["EU MDR"];
 }
 
 // ── Proxy API through background service worker ──────────────────────────────
