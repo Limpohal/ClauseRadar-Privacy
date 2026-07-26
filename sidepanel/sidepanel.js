@@ -320,14 +320,14 @@ async function handleFile(file, fileInput, fileNameDisplay, textarea, draftKey) 
   try {
     let text = "";
     if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-      // .docx - use global mammoth from CDN
+      // .docx - use global mammoth from local lib
       const arrayBuffer = await file.arrayBuffer();
       const result = await mammoth.extractRawText({ arrayBuffer });
       text = result.value;
     } else if (file.type === "application/pdf") {
-      // .pdf - use global pdfjsLib from CDN
+      // .pdf - use local pdf.js
       const arrayBuffer = await file.arrayBuffer();
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.js`;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL("sidepanel/lib/pdf.worker.min.mjs");
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const textPromises = [];
       for (let i = 1; i <= pdf.numPages; i++) {
