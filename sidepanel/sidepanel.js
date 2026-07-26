@@ -30,8 +30,6 @@ async function getDeviceId() {
 }
 
 // ---------- Backend URL ----------
-const DEFAULT_BACKEND = "https://clauseradar.ahali-clauseradar.workers.dev";
-
 function getBackendUrl() {
   return DEFAULT_BACKEND;
 }
