@@ -275,11 +275,11 @@ lines per entry, it's probably two tasks, not one.
 **Goal:** move from "useful utility" to "something a compliance professional defends a real decision with." Pull items from here based on what Milestone 4 feedback actually surfaces — don't build all of it blind, and don't start this milestone until Milestone 4's exit criteria is met.
 
 - [x] **Document-level compare:** accept full document paste or `.docx`/PDF upload for both sides, auto-segment into clauses, run the diff across the whole document, output as a scrollable report with search, filter, and Markdown export — **done in M5**
-- [ ] **Context tagging:** let the user set jurisdiction/framework (EU MDR, FDA 21 CFR, ISO 13485, IVDR, etc.) before classifying, and pass that into the prompt instead of the current generic rubric
-- [ ] **Cited rationale:** prompt the model to point to the specific phrase or concept that triggered the classification, not just a generic one-sentence rationale
-- [ ] **Confidence / borderline flag:** surface when a clause is genuinely ambiguous ("could argue Minor or Critical") instead of forcing false certainty into one label
-- [ ] **User override + reasoning:** let the user change the AI's classification and record why — store the override alongside the original call so it becomes part of the exportable record
-- [ ] **Export upgrade:** extend the existing Markdown export to include citation, confidence flag, and any override/reasoning per row
+- [x] **Context tagging:** let the user set jurisdiction/framework (EU MDR, FDA 21 CFR, ISO 13485, IVDR, etc.) before classifying, and pass that into the prompt instead of the current generic rubric
+- [x] **Cited rationale:** prompt the model to point to the specific phrase or concept that triggered the classification, not just a generic one-sentence rationale
+- [x] **Confidence / borderline flag:** surface when a clause is genuinely ambiguous ("could argue Minor or Critical") instead of forcing false certainty into one label
+- [x] **User override + reasoning:** let the user change the AI's classification and record why — store the override alongside the original call so it becomes part of the exportable record
+- [x] **Export upgrade:** extend the existing Markdown export to include citation, confidence flag, and any override/reasoning per row
 
 **Exit criteria:** a classification or diff result, once exported, reads like something that could support a real change-control or audit record — not just a labeled snippet.
 
