@@ -523,7 +523,7 @@ function attachReportListeners(container, sections) {
         if (matchesSearch && matchesLevel) anyVisible = true;
       });
       sectionEl.style.display = anyVisible ? "" : "none";
-    }
+    });
   }
 
   searchInput?.addEventListener("input", applyFilters);
