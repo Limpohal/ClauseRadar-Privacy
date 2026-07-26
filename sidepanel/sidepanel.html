@@ -97,10 +97,6 @@
         </div>
         <div class="quota-bar"><div id="quota-fill" class="quota-fill"></div></div>
       </div>
-      <label class="field-label" for="backend-url">Backend URL</label>
-      <input id="backend-url" type="text" placeholder="https://your-worker.workers.dev" />
-      <button id="settings-save" class="btn-secondary">Save</button>
-      <div id="settings-status" class="status-line"></div>
 
       <details class="data-note" style="margin-top: 16px;">
         <summary>Data handling</summary>
@@ -108,7 +104,7 @@
           <strong>What's sent:</strong> Only the clause text you select or paste, plus an anonymous device ID for rate limiting.<br>
           <strong>What's stored server-side:</strong> A daily request counter per device ID (reset at midnight UTC). No clause text, no IP, no personal data.<br>
           <strong>Retention:</strong> Counter expires after 2 days. OpenRouter (model provider) receives the text for classification only — see their <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener">privacy policy</a>.<br>
-          <strong>Local storage:</strong> Your backend URL, device ID, and pending selection stay in <code>chrome.storage.local</code> on this device only.
+          <strong>Local storage:</strong> Your device ID and pending selection stay in <code>chrome.storage.local</code> on this device only.
         </p>
       </details>
     </section>

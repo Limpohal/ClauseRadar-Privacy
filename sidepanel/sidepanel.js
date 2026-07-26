@@ -814,20 +814,9 @@ compareRunBtn.addEventListener("click", async () => {
   }
 });
 
-// ---------- Settings tab ----------
-const backendUrlInput = document.getElementById("backend-url");
-const settingsSaveBtn = document.getElementById("settings-save");
-const settingsStatus = document.getElementById("settings-status");
+// Default backend URL (deployed worker)
+const DEFAULT_BACKEND = "https://clauseradar.ahali-clauseradar.workers.dev";
 
-async function loadSettings() {
-  backendUrlInput.value = await getBackendUrl();
+function getBackendUrl() {
+  return DEFAULT_BACKEND;
 }
-loadSettings();
-
-settingsSaveBtn.addEventListener("click", async () => {
-  const url = backendUrlInput.value.trim();
-  await chrome.storage.local.set({ backendUrl: url });
-  settingsStatus.textContent = "Saved.";
-  settingsStatus.className = "status-line ok";
-  setTimeout(() => { settingsStatus.textContent = ""; }, 2000);
-});
