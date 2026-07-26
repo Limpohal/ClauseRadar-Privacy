@@ -325,10 +325,10 @@ async function handleFile(file, fileInput, fileNameDisplay, textarea, draftKey) 
       const result = await mammoth.extractRawText({ arrayBuffer });
       text = result.value;
     } else if (file.type === "application/pdf") {
-      // .pdf - use local pdf.js
-      const arrayBuffer = await file.arrayBuffer();
+      // .pdf - dynamically import pdf.js ES module
+      const pdfjsLib = await import(chrome.runtime.getURL("sidepanel/lib/pdf.min.mjs"));
       pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL("sidepanel/lib/pdf.worker.min.mjs");
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
       const textPromises = [];
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
