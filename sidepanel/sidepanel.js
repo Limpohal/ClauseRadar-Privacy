@@ -392,13 +392,73 @@ function segmentDocument(text) {
 }
 
 // ---- Document compare report rendering ----
+let currentReportSections = []; // store for filtering
+
 function renderDocReport(container, sections) {
   if (!sections.length) {
     container.innerHTML = `<p class="status-line">No comparable segments found.</p>`;
     return;
   }
 
-  const html = sections.map((section, idx) => {
+  currentReportSections = sections;
+
+  // Compute statistics
+  const stats = computeReportStats(sections);
+
+  // Build filter toolbar
+  const filterHtml = `
+    <div class="doc-report-toolbar">
+      <div class="doc-report-stats">
+        <span class="stat"><span class="stat-value">${stats.totalSections}</span> sections</span>
+        <span class="stat"><span class="stat-value">${stats.totalChanges}</span> changes</span>
+        <span class="stat critical"><span class="stat-value">${stats.byLevel.critical}</span> Critical</span>
+        <span class="stat minor"><span class="stat-value">${stats.byLevel.minor}</span> Minor</span>
+        <span class="stat administrative"><span class="stat-value">${stats.byLevel.administrative}</span> Admin</span>
+      </div>
+      <div class="doc-report-filters">
+        <input type="text" id="doc-report-search" placeholder="Search clauses, changes…" class="doc-report-search">
+        <div class="doc-report-level-filters">
+          <label><input type="checkbox" value="critical" checked> Critical</label>
+          <label><input type="checkbox" value="minor" checked> Minor</label>
+          <label><input type="checkbox" value="administrative" checked> Administrative</label>
+        </div>
+      </div>
+    `;
+
+  // Build sections HTML
+  const sectionsHtml = buildSectionsHtml(sections);
+
+  container.innerHTML = `
+    ${filterHtml}
+    <div class="doc-report">${sectionsHtml}</div>
+    <div class="doc-report-actions">
+      <button class="btn-secondary" id="doc-report-copy">Copy as Markdown</button>
+      <button class="btn-secondary" id="doc-report-download">Download .md</button>
+    </div>
+  `;
+
+  // Attach event listeners
+  attachReportListeners(container, sections);
+}
+
+function computeReportStats(sections) {
+  const stats = {
+    totalSections: sections.length,
+    totalChanges: 0,
+    byLevel: { critical: 0, minor: 0, administrative: 0 }
+  };
+  sections.forEach(s => {
+    (s.rows || []).forEach(r => {
+      stats.totalChanges++;
+      const lvl = (r.level || "administrative").toLowerCase();
+      if (stats.byLevel[lvl] !== undefined) stats.byLevel[lvl]++;
+    });
+  });
+  return stats;
+}
+
+function buildSectionsHtml(sections) {
+  return sections.map((section, idx) => {
     const rows = section.rows || [];
     const topLevel = section.topLevel || section.title || `Section ${idx + 1}`;
     const worstLevel = rows.length > 0
@@ -408,6 +468,15 @@ function renderDocReport(container, sections) {
         }, { level: "administrative" }).level
       : "administrative";
     const stampClass = worstLevel.toLowerCase();
+
+    // Build table rows
+    const tableRows = rows.map(r => `
+      <tr data-level="${(r.level || "administrative").toLowerCase()}">
+        <td>${escapeHtml(r.clause || "")}</td>
+        <td>${escapeHtml(r.change || "")}</td>
+        <td><span class="diff-tag ${(r.level || "administrative").toLowerCase()}">${escapeHtml(r.level || "")}</span></td>
+      </tr>
+    `).join("");
 
     return `
       <details class="doc-report-section" ${idx === 0 ? "open" : ""}>
@@ -421,51 +490,89 @@ function renderDocReport(container, sections) {
           ${rows.length > 0 ? `
             <table class="doc-report-section-table">
               <thead><tr><th>Clause</th><th>What changed</th><th>Impact</th></tr></thead>
-              <tbody>
-                ${rows.map(r => `
-                  <tr>
-                    <td>${escapeHtml(r.clause || "")}</td>
-                    <td>${escapeHtml(r.change || "")}</td>
-                    <td><span class="diff-tag ${(r.level || "administrative").toLowerCase()}">${escapeHtml(r.level || "")}</span></td>
-                  </tr>
-                `).join("")}
-              </tbody>
+              <tbody>${tableRows}</tbody>
             </table>
           ` : `<p class="status-line">No significant changes detected.</p>`}
         </div>
       </details>
     `;
   }).join("");
+}
 
-  container.innerHTML = `
-    <div class="doc-report">${html}</div>
-    <div class="doc-report-actions">
-      <button class="btn-secondary" id="doc-report-copy">Copy full report as Markdown</button>
-    </div>
-  `;
+function attachReportListeners(container, sections) {
+  // Search
+  const searchInput = container.querySelector("#doc-report-search");
+  const levelCheckboxes = container.querySelectorAll(".doc-report-level-filters input[type=checkbox]");
 
-  const sectionsForCopy = sections;
+  function applyFilters() {
+    const searchTerm = searchInput?.value.toLowerCase() || "";
+    const activeLevels = Array.from(levelCheckboxes)
+      .filter(cb => cb.checked)
+      .map(cb => cb.value);
+
+    const sectionElements = container.querySelectorAll(".doc-report-section");
+    sectionElements.forEach((sectionEl, idx) => {
+      const rows = sectionEl.querySelectorAll("tbody tr");
+      let anyVisible = false;
+      rows.forEach(row => {
+        const level = row.dataset.level;
+        const text = row.textContent.toLowerCase();
+        const matchesSearch = !searchTerm || text.includes(searchTerm);
+        const matchesLevel = activeLevels.includes(level);
+        row.style.display = matchesSearch && matchesLevel ? "" : "none";
+        if (matchesSearch && matchesLevel) anyVisible = true;
+      });
+      sectionEl.style.display = anyVisible ? "" : "none";
+    }
+  }
+
+  searchInput?.addEventListener("input", applyFilters);
+  levelCheckboxes.forEach(cb => cb.addEventListener("change", applyFilters));
+
+  // Copy as Markdown
   container.querySelector("#doc-report-copy")?.addEventListener("click", () => {
-    let md = `## ClauseRadar — Document Comparison\n\n`;
-    sectionsForCopy.forEach(s => {
-      md += `### ${s.topLevel || s.title || "Section"}\n\n`;
-      if (s.rows && s.rows.length > 0) {
-        s.rows.forEach(r => {
-          md += `#### ${r.clause || "Change"}\n**Impact:** ${r.level}\n\n**Change:** ${r.change}\n\n---\n`;
-        });
-      } else {
-        md += `*No significant changes detected.*\n\n---\n`;
-      }
-    });
-    md += `*Compared ${new Date().toLocaleString()}*`;
+    const md = buildMarkdownReport(sections);
     navigator.clipboard.writeText(md);
-    const btn = container.querySelector("#doc-report-copy");
-    if (btn) {
-      const orig = btn.textContent;
-      btn.textContent = "Copied!";
-      setTimeout(() => { btn.textContent = orig; }, 1500);
+    flashButton(container.querySelector("#doc-report-copy"), "Copied!");
+  });
+
+  // Download as .md file
+  container.querySelector("#doc-report-download")?.addEventListener("click", () => {
+    const md = buildMarkdownReport(sections);
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `clauseradar-comparison-${new Date().toISOString().slice(0,10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    flashButton(container.querySelector("#doc-report-download"), "Downloaded!");
+  });
+}
+
+function buildMarkdownReport(sections) {
+  let md = `# ClauseRadar — Document Comparison\n\n`;
+  const stats = computeReportStats(sections);
+  md += `*Sections: ${stats.totalSections} | Changes: ${stats.totalChanges} (Critical: ${stats.byLevel.critical}, Minor: ${stats.byLevel.minor}, Admin: ${stats.byLevel.administrative})*\n\n---\n\n`;
+  sections.forEach(s => {
+    md += `## ${s.topLevel || s.title || "Section"}\n\n`;
+    if (s.rows && s.rows.length > 0) {
+      s.rows.forEach(r => {
+        md += `### ${r.clause || "Change"}\n**Impact:** ${r.level}\n\n**Change:** ${r.change}\n\n---\n`;
+      });
+    } else {
+      md += `*No significant changes detected.*\n\n---\n`;
     }
   });
+  md += `\n*Compared ${new Date().toLocaleString()}*`;
+  return md;
+}
+
+function flashButton(btn, text) {
+  if (!btn) return;
+  const orig = btn.textContent;
+  btn.textContent = text;
+  setTimeout(() => { btn.textContent = orig; }, 1500);
 }
 
 // Compare inputs: autosave drafts

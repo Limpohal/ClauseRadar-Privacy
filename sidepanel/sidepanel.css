@@ -581,3 +581,175 @@ textarea:focus, input:focus {
 .file-name-display .file-remove:hover {
   background: var(--critical-tint);
 }
+
+/* --- Document report toolbar --- */
+.doc-report-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--paper-tint);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+}
+.doc-report-stats {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.doc-report-stats .stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.doc-report-stats .stat.critical { color: var(--critical); }
+.doc-report-stats .stat.minor { color: var(--minor); }
+.doc-report-stats .stat.administrative { color: var(--admin); }
+.doc-report-toolbar-right {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.doc-report-search {
+  width: 180px;
+  padding: 6px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 12px;
+}
+.doc-report-level-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.doc-report-level-filters label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 11px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.doc-report-level-filters input[type="checkbox"] {
+  accent-color: var(--admin);
+}
+.doc-report-level-filters .filter-critical { color: var(--critical); }
+.doc-report-level-filters .filter-minor { color: var(--minor); }
+.doc-report-level-filters .filter-administrative { color: var(--admin); }
+
+/* --- Document report section --- */
+.doc-report-section {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: #fff;
+  overflow: hidden;
+}
+.doc-report-section summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--paper-tint);
+  border-bottom: 1px solid var(--rule);
+}
+.doc-report-section summary::-webkit-details-marker { display: none; }
+.doc-report-section summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 8px;
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
+.doc-report-section[open] summary::before { transform: rotate(90deg); }
+.doc-report-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.doc-report-section-title {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+}
+.doc-report-section-stamp {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+.doc-report-section-stamp.critical { background: var(--critical-tint); color: var(--critical); }
+.doc-report-section-stamp.minor { background: var(--minor-tint); color: var(--minor); }
+.doc-report-section-stamp.administrative { background: var(--admin-tint); color: var(--admin); }
+.doc-report-section-content {
+  padding: 12px;
+}
+.doc-report-section-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.doc-report-section-table th,
+.doc-report-section-table td {
+  border: 1px solid var(--rule);
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.doc-report-section-table th {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  background: var(--paper-tint);
+}
+.doc-report-section-table tbody tr {
+  transition: background 0.15s ease;
+}
+.doc-report-section-table tbody tr:hover {
+  background: var(--paper-tint);
+}
+
+/* Diff tag inside report table */
+.doc-report-section-table .diff-tag {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.doc-report-section-table .diff-tag.critical { background: var(--critical-tint); color: var(--critical); }
+.doc-report-section-table .diff-tag.minor { background: var(--minor-tint); color: var(--minor); }
+.doc-report-section-table .diff-tag.administrative { background: var(--admin-tint); color: var(--admin); }
+
+/* --- Report actions --- */
+.doc-report-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule);
+}
+.doc-report-actions .btn-secondary {
+  font-size: 10.5px;
+  padding: 6px 10px;
+}
