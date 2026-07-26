@@ -111,34 +111,50 @@ function json(obj, status = 200, corsHeaders) {
 }
 
 async function callModel(systemPrompt, userPrompt, env) {
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${env.OPENROUTER_API_KEY}`
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 600,
-      temperature: 0,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ]
-    })
-  });
+  const MAX_RETRIES = 1;
+  const BASE_DELAY_MS = 800;
 
-  if (!res.ok) {
-    throw new Error(`OpenRouter error: ${res.status}`);
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${env.OPENROUTER_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 600,
+        temperature: 0,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      })
+    });
+
+    // Retry on transient errors (429, 5xx, network errors)
+    const isTransient = res.status === 429 || res.status >= 500;
+    if (!res.ok) {
+      if (isTransient && attempt < MAX_RETRIES) {
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt); // 800ms, 1600ms
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw new Error(`OpenRouter error: ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content?.trim() || "";
+    const cleaned = text.replace(/```json|```/g, "").trim();
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      throw new Error("Model did not return valid JSON");
+    }
   }
-  const data = await res.json();
-  const text = data.choices?.[0]?.message?.content?.trim() || "";
-  const cleaned = text.replace(/```json|```/g, "").trim();
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    throw new Error("Model did not return valid JSON");
-  }
+
+  // Should not reach here, but TypeScript safety
+  throw new Error("Model call failed after retries");
 }
 
 const CLASSIFY_SYSTEM = `You are a regulatory affairs assistant for medical device professionals.
