@@ -180,6 +180,16 @@ textarea:focus, input:focus {
   line-height: 1.5;
 }
 
+.stamp-actions {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+}
+.stamp-actions .btn-secondary {
+  font-size: 10.5px;
+  padding: 6px 10px;
+}
+
 /* --- Diff table --- */
 .diff-table {
   width: 100%;
@@ -213,6 +223,14 @@ textarea:focus, input:focus {
 .diff-tag.critical { background: var(--critical-tint); color: var(--critical); }
 .diff-tag.minor { background: var(--minor-tint); color: var(--minor); }
 .diff-tag.administrative { background: var(--admin-tint); color: var(--admin); }
+
+.diff-actions {
+  margin-top: 8px;
+}
+.diff-actions .btn-secondary {
+  font-size: 10.5px;
+  padding: 6px 10px;
+}
 
 .status-line {
   font-size: 12px;

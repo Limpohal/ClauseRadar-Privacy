@@ -218,10 +218,52 @@ refreshHistory();
 // Clear history button
 document.getElementById("history-clear")?.addEventListener("click", clearHistory);
 
+// ---------- Draft autosave ----------
+const DRAFT_CLASSIFY_KEY = "clauseradar_draft_classify";
+const DRAFT_COMPARE_A_KEY = "clauseradar_draft_compare_a";
+const DRAFT_COMPARE_B_KEY = "clauseradar_draft_compare_b";
+const DRAFT_DEBOUNCE_MS = 500;
+
+let draftTimers = { classify: null, compareA: null, compareB: null };
+
+async function loadDrafts() {
+  const { [DRAFT_CLASSIFY_KEY]: classifyDraft = "", [DRAFT_COMPARE_A_KEY]: compareADraft = "", [DRAFT_COMPARE_B_KEY]: compareBDraft = "" } = await chrome.storage.local.get([DRAFT_CLASSIFY_KEY, DRAFT_COMPARE_A_KEY, DRAFT_COMPARE_B_KEY]);
+  if (classifyDraft) classifyInput.value = classifyDraft;
+  if (compareADraft) compareA.value = compareADraft;
+  if (compareBDraft) compareB.value = compareBDraft;
+}
+
+function saveDraft(key, value) {
+  chrome.storage.local.set({ [key]: value });
+}
+
+function debouncedSaveDraft(key, value) {
+  clearTimeout(draftTimers[key]);
+  draftTimers[key] = setTimeout(() => saveDraft(key, value), DRAFT_DEBOUNCE_MS);
+}
+
+function clearDraft(key) {
+  chrome.storage.local.remove(key);
+}
+
+function clearAllDrafts() {
+  clearDraft(DRAFT_CLASSIFY_KEY);
+  clearDraft(DRAFT_COMPARE_A_KEY);
+  clearDraft(DRAFT_COMPARE_B_KEY);
+}
+
+// Load drafts on startup
+loadDrafts();
+
 // ---------- Classify tab ----------
 const classifyInput = document.getElementById("classify-input");
 const classifyRunBtn = document.getElementById("classify-run");
 const classifyResult = document.getElementById("classify-result");
+
+// Classify input: autosave draft
+classifyInput.addEventListener("input", () => {
+  debouncedSaveDraft(DRAFT_CLASSIFY_KEY, classifyInput.value);
+});
 
 function renderStamp(container, { level, rationale, excerpt }) {
   const levelClass = (level || "administrative").toLowerCase();
@@ -230,8 +272,21 @@ function renderStamp(container, { level, rationale, excerpt }) {
       <span class="stamp ${levelClass}">${level}</span>
       <p class="stamp-rationale">${escapeHtml(rationale)}</p>
       ${excerpt ? `<p class="stamp-excerpt">${escapeHtml(truncate(excerpt, 220))}</p>` : ""}
+      <div class="stamp-actions">
+        <button class="btn-secondary stamp-copy" data-level="${escapeHtml(level)}" data-rationale="${escapeHtml(rationale)}" data-excerpt="${escapeHtml(excerpt || "")}" title="Copy as Markdown">Copy as Markdown</button>
+      </div>
     </div>
   `;
+
+  // Attach copy handler
+  container.querySelector(".stamp-copy").addEventListener("click", (e) => {
+    const btn = e.currentTarget;
+    const md = `## ClauseRadar — Classification\n\n**Level:** ${btn.dataset.level}\n\n**Rationale:** ${btn.dataset.rationale}\n\n**Excerpt:**\n> ${btn.dataset.excerpt.replace(/\n/g, "\n> ")}\n\n---\n*Classified ${new Date().toLocaleString()}*`;
+    navigator.clipboard.writeText(md);
+    const orig = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
 }
 
 function escapeHtml(str = "") {
@@ -295,11 +350,20 @@ chrome.storage.onChanged.addListener((changes) => {
   }
 });
 
+// Compare inputs: autosave drafts
+
 // ---------- Compare tab ----------
 const compareA = document.getElementById("compare-a");
 const compareB = document.getElementById("compare-b");
 const compareRunBtn = document.getElementById("compare-run");
 const compareResult = document.getElementById("compare-result");
+
+compareA.addEventListener("input", () => {
+  debouncedSaveDraft(DRAFT_COMPARE_A_KEY, compareA.value);
+});
+compareB.addEventListener("input", () => {
+  debouncedSaveDraft(DRAFT_COMPARE_B_KEY, compareB.value);
+});
 
 function renderDiffTable(container, rows) {
   const body = rows.map((r) => `
@@ -314,7 +378,24 @@ function renderDiffTable(container, rows) {
       <thead><tr><th>Clause</th><th>What changed</th><th>Impact</th></tr></thead>
       <tbody>${body}</tbody>
     </table>
+    <div class="diff-actions">
+      <button class="btn-secondary diff-copy" title="Copy as Markdown">Copy as Markdown</button>
+    </div>
   `;
+
+  // Attach copy handler
+  container.querySelector(".diff-copy").addEventListener("click", () => {
+    let md = `## ClauseRadar — Comparison\n\n`;
+    rows.forEach((row) => {
+      md += `### ${row.clause || "Change"}\n**Impact:** ${row.level}\n\n**Change:** ${row.change}\n\n---\n`;
+    });
+    md += `*Compared ${new Date().toLocaleString()}*`;
+    navigator.clipboard.writeText(md);
+    const btn = container.querySelector(".diff-copy");
+    const orig = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
 }
 
 compareRunBtn.addEventListener("click", async () => {
