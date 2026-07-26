@@ -196,6 +196,18 @@ function validateResponse(obj, mode) {
     if (!obj.rationale || typeof obj.rationale !== "string" || !obj.rationale.trim()) {
       return "Missing or empty 'rationale'";
     }
+    // Optional new fields: citation, confidence, borderline, alternativeLevels
+    if (obj.confidence !== undefined && !["high", "medium", "low"].includes(obj.confidence)) {
+      return "Invalid 'confidence' (must be high, medium, or low)";
+    }
+    if (obj.borderline !== undefined && typeof obj.borderline !== "boolean") {
+      return "Invalid 'borderline' (must be boolean)";
+    }
+    if (obj.alternativeLevels !== undefined) {
+      if (!Array.isArray(obj.alternativeLevels) || !obj.alternativeLevels.every(l => ["Critical", "Minor", "Administrative"].includes(l))) {
+        return "Invalid 'alternativeLevels' (must be array of Critical/Minor/Administrative)";
+      }
+    }
   } else if (mode === "diff") {
     if (!Array.isArray(obj.rows)) return "Missing 'rows' array";
     for (const row of obj.rows) {
@@ -203,6 +215,18 @@ function validateResponse(obj, mode) {
       if (!row.change || typeof row.change !== "string") return "Row missing 'change'";
       if (!row.level || !["Critical", "Minor", "Administrative"].includes(row.level)) {
         return "Row has missing or invalid 'level'";
+      }
+      // Optional new fields per row
+      if (row.confidence !== undefined && !["high", "medium", "low"].includes(row.confidence)) {
+        return "Row invalid 'confidence' (must be high, medium, or low)";
+      }
+      if (row.borderline !== undefined && typeof row.borderline !== "boolean") {
+        return "Row invalid 'borderline' (must be boolean)";
+      }
+      if (row.alternativeLevels !== undefined) {
+        if (!Array.isArray(row.alternativeLevels) || !row.alternativeLevels.every(l => ["Critical", "Minor", "Administrative"].includes(l))) {
+          return "Row invalid 'alternativeLevels'";
+        }
       }
     }
   }
@@ -216,37 +240,43 @@ Classify the significance of the given clause/paragraph exactly as: "Critical", 
 - Critical: changes conformity requirements, safety/performance obligations (Annex I), or approval pathway.
 - Minor: changes process, documentation, or timelines without altering core obligations.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
-Respond with ONLY valid JSON, no markdown: {"level": "...", "rationale": "one concise sentence"}`,
+Respond with ONLY valid JSON, no markdown:
+{"level": "...", "rationale": "one concise sentence", "citation": "exact phrase or concept from the text that triggered this classification", "confidence": "high|medium|low", "borderline": false, "alternativeLevels": []}`,
     ivdr: `You are a regulatory affairs assistant for IVD professionals applying EU IVDR 2017/746.
 Classify the significance of the given clause/paragraph exactly as: "Critical", "Minor", or "Administrative".
 - Critical: changes conformity requirements, safety/performance obligations (Annex I), or approval pathway.
 - Minor: changes process, documentation, or timelines without altering core obligations.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
-Respond with ONLY valid JSON, no markdown: {"level": "...", "rationale": "one concise sentence"}`,
+Respond with ONLY valid JSON, no markdown:
+{"level": "...", "rationale": "one concise sentence", "citation": "exact phrase or concept from the text that triggered this classification", "confidence": "high|medium|low", "borderline": false, "alternativeLevels": []}`,
     fda: `You are a regulatory affairs assistant for medical device professionals applying FDA 21 CFR Part 820 (QSR).
 Classify the significance of the given clause/paragraph exactly as: "Critical", "Minor", or "Administrative".
 - Critical: changes regulatory requirements affecting safety/effectiveness, design controls (820.30), CAPA (820.100), or submission pathway (510(k)/PMA).
 - Minor: changes process, documentation, or timelines without altering core QSR obligations.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
-Respond with ONLY valid JSON, no markdown: {"level": "...", "rationale": "one concise sentence"}`,
+Respond with ONLY valid JSON, no markdown:
+{"level": "...", "rationale": "one concise sentence", "citation": "exact phrase or concept from the text that triggered this classification", "confidence": "high|medium|low", "borderline": false, "alternativeLevels": []}`,
     iso13485: `You are a regulatory affairs assistant for medical device professionals applying ISO 13485:2016.
 Classify the significance of the given clause/paragraph exactly as: "Critical", "Minor", or "Administrative".
 - Critical: changes QMS requirements affecting product conformity, risk management (clause 7.1), design/development (clause 7.3), or supplier controls (clause 7.4).
 - Minor: changes process, documentation, or timelines without altering core QMS obligations.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
-Respond with ONLY valid JSON, no markdown: {"level": "...", "rationale": "one concise sentence"}`,
+Respond with ONLY valid JSON, no markdown:
+{"level": "...", "rationale": "one concise sentence", "citation": "exact phrase or concept from the text that triggered this classification", "confidence": "high|medium|low", "borderline": false, "alternativeLevels": []}`,
     iso14971: `You are a regulatory affairs assistant for medical device professionals applying ISO 14971:2019.
 Classify the significance of the given clause/paragraph exactly as: "Critical", "Minor", or "Administrative".
 - Critical: changes risk management requirements affecting risk acceptability criteria, risk control measures, residual risk evaluation, or benefit-risk analysis.
 - Minor: changes risk management process, documentation, or timelines without altering core risk acceptability.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
-Respond with ONLY valid JSON, no markdown: {"level": "...", "rationale": "one concise sentence"}`,
+Respond with ONLY valid JSON, no markdown:
+{"level": "...", "rationale": "one concise sentence", "citation": "exact phrase or concept from the text that triggered this classification", "confidence": "high|medium|low", "borderline": false, "alternativeLevels": []}`,
     general: `You are a regulatory affairs assistant for medical device professionals.
 Classify the significance of the given clause/paragraph exactly as: "Critical", "Minor", or "Administrative".
 - Critical: changes conformity requirements, safety/performance obligations, or approval pathway.
 - Minor: changes process, documentation, or timelines without altering core obligations.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
-Respond with ONLY valid JSON, no markdown: {"level": "...", "rationale": "one concise sentence"}`
+Respond with ONLY valid JSON, no markdown:
+{"level": "...", "rationale": "one concise sentence", "citation": "exact phrase or concept from the text that triggered this classification", "confidence": "high|medium|low", "borderline": false, "alternativeLevels": []}`
   };
   return frameworks[framework] || frameworks.general;
 }
@@ -272,7 +302,7 @@ using the same definitions as a standard gap analysis:
 - Minor: changes process, documentation, or timelines without altering core obligations.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
 Respond with ONLY valid JSON, no markdown:
-{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`,
+{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "...", "citation": "exact phrase from old or new text that triggered this", "confidence": "high|medium|low", "borderline": false, "alternativeLevels": []}]}`,
     ivdr: `You are a regulatory affairs assistant for IVD professionals applying EU IVDR 2017/746.
 Compare the previous and new versions of a regulatory clause. Break the comparison into
 individual clause-level changes. For each change, classify impact exactly as "Critical", "Minor", or "Administrative"
@@ -281,7 +311,7 @@ using the same definitions as a standard gap analysis:
 - Minor: changes process, documentation, or timelines without altering core obligations.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
 Respond with ONLY valid JSON, no markdown:
-{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`,
+{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "...", "citation": "exact phrase from old or new text that triggered this", "confidence": "high|medium|low", "borderline": false, "alternativeLevels": []}]}`,
     fda: `You are a regulatory affairs assistant for medical device professionals applying FDA 21 CFR Part 820 (QSR).
 Compare the previous and new versions of a regulatory clause. Break the comparison into
 individual clause-level changes. For each change, classify impact exactly as "Critical", "Minor", or "Administrative"
@@ -290,7 +320,7 @@ using the same definitions as a standard gap analysis:
 - Minor: changes process, documentation, or timelines without altering core QSR obligations.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
 Respond with ONLY valid JSON, no markdown:
-{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`,
+{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "...", "citation": "exact phrase from old or new text that triggered this", "confidence": "high|medium|low", "borderline": false, "alternativeLevels": []}]}`,
     iso13485: `You are a regulatory affairs assistant for medical device professionals applying ISO 13485:2016.
 Compare the previous and new versions of a regulatory clause. Break the comparison into
 individual clause-level changes. For each change, classify impact exactly as "Critical", "Minor", or "Administrative"
@@ -299,7 +329,7 @@ using the same definitions as a standard gap analysis:
 - Minor: changes process, documentation, or timelines without altering core QMS obligations.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
 Respond with ONLY valid JSON, no markdown:
-{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`,
+{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "...", "citation": "exact phrase from old or new text that triggered this", "confidence": "high|medium|low", "borderline": false, "alternativeLevels": []}]}`,
     iso14971: `You are a regulatory affairs assistant for medical device professionals applying ISO 14971:2019.
 Compare the previous and new versions of a regulatory clause. Break the comparison into
 individual clause-level changes. For each change, classify impact exactly as "Critical", "Minor", or "Administrative"
@@ -308,7 +338,7 @@ using the same definitions as a standard gap analysis:
 - Minor: changes risk management process, documentation, or timelines without altering core risk acceptability.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
 Respond with ONLY valid JSON, no markdown:
-{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`,
+{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "...", "citation": "exact phrase from old or new text that triggered this", "confidence": "high|medium|low", "borderline": false, "alternativeLevels": []}]}`,
     general: `You are a regulatory affairs assistant for medical device professionals.
 Compare the previous and new versions of a regulatory clause. Break the comparison into
 individual clause-level changes. For each change, classify impact exactly as "Critical", "Minor", or "Administrative"
@@ -317,7 +347,7 @@ using the same definitions as a standard gap analysis:
 - Minor: changes process, documentation, or timelines without altering core obligations.
 - Administrative: wording, formatting, numbering, or non-substantive edits.
 Respond with ONLY valid JSON, no markdown:
-{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`
+{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "...", "citation": "exact phrase from old or new text that triggered this", "confidence": "high|medium|low", "borderline": false, "alternativeLevels": []}]}`
   };
   return prompts[framework] || prompts.general;
 }

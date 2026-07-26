@@ -482,13 +482,21 @@ function buildSectionsHtml(sections) {
     const stampClass = worstLevel.toLowerCase();
 
     // Build table rows
-    const tableRows = rows.map(r => `
-      <tr data-level="${(r.level || "administrative").toLowerCase()}">
-        <td>${escapeHtml(r.clause || "")}</td>
-        <td>${escapeHtml(r.change || "")}</td>
-        <td><span class="diff-tag ${(r.level || "administrative").toLowerCase()}">${escapeHtml(r.level || "")}</span></td>
-      </tr>
-    `).join("");
+    const tableRows = rows.map(r => {
+      const badge = r.borderline ? `<span class="borderline-badge" title="Borderline classification">⚠</span>` : "";
+      const confidenceLabel = r.confidence ? `<span class="confidence-badge confidence-${r.confidence}">${r.confidence.charAt(0).toUpperCase() + r.confidence.slice(1)}</span>` : "";
+      const altLevels = r.alternativeLevels && r.alternativeLevels.length > 0 
+        ? `<span class="alt-levels-badge" title="Alternative levels to consider">${r.alternativeLevels.join(", ")}</span>` 
+        : "";
+      const citationHtml = r.citation ? `<div class="diff-citation">Citation: ${escapeHtml(r.citation)}</div>` : "";
+      return `
+        <tr data-level="${(r.level || "administrative").toLowerCase()}">
+          <td>${escapeHtml(r.clause || "")}</td>
+          <td>${escapeHtml(r.change || "")}${citationHtml}</td>
+          <td><span class="diff-tag ${(r.level || "administrative").toLowerCase()}">${escapeHtml(r.level || "")}</span> ${badge} ${confidenceLabel} ${altLevels}</td>
+        </tr>
+      `;
+    }).join("");
 
     return `
       <details class="doc-report-section" ${idx === 0 ? "open" : ""}>
@@ -570,7 +578,12 @@ function buildMarkdownReport(sections) {
     md += `## ${s.topLevel || s.title || "Section"}\n\n`;
     if (s.rows && s.rows.length > 0) {
       s.rows.forEach(r => {
-        md += `### ${r.clause || "Change"}\n**Impact:** ${r.level}\n\n**Change:** ${r.change}\n\n---\n`;
+        md += `### ${r.clause || "Change"}\n**Impact:** ${r.level}\n\n**Change:** ${r.change}\n\n`;
+        if (r.citation) md += `**Citation:** ${r.citation}\n\n`;
+        if (r.confidence) md += `**Confidence:** ${r.confidence.charAt(0).toUpperCase() + r.confidence.slice(1)}\n\n`;
+        if (r.borderline) md += `**Borderline:** Yes\n\n`;
+        if (r.alternativeLevels && r.alternativeLevels.length > 0) md += `**Alternative levels to consider:** ${r.alternativeLevels.join(", ")}\n\n`;
+        md += `---\n`;
       });
     } else {
       md += `*No significant changes detected.*\n\n---\n`;
@@ -647,15 +660,36 @@ classifyInput.addEventListener("input", () => {
   debouncedSaveDraft(DRAFT_CLASSIFY_KEY, classifyInput.value);
 });
 
-function renderStamp(container, { level, rationale, excerpt }) {
+function renderStamp(container, { level, rationale, citation, confidence, borderline, alternativeLevels, excerpt }) {
   const levelClass = (level || "administrative").toLowerCase();
+  const confClass = (confidence || "medium").toLowerCase();
+  const confLabel = confidence ? confidence.charAt(0).toUpperCase() + confidence.slice(1) : "Medium";
+  const borderlineBadge = borderline ? `<span class="stamp-badge borderline" title="Borderline classification — could reasonably be another level">⚠ Borderline</span>` : "";
+  const altLevels = alternativeLevels && alternativeLevels.length > 0 
+    ? `<span class="stamp-badge alt-levels" title="Alternative levels to consider">${alternativeLevels.join(", ")}</span>` : "";
+
   container.innerHTML = `
     <div class="stamp-card">
       <span class="stamp ${levelClass}">${level}</span>
+      ${borderlineBadge}
+      ${altLevels}
       <p class="stamp-rationale">${escapeHtml(rationale)}</p>
+      ${citation ? `<p class="stamp-citation"><strong>Citation:</strong> ${escapeHtml(citation)}</p>` : ""}
+      <div class="stamp-meta">
+        <span class="confidence ${confClass}" title="Model confidence">Confidence: ${confLabel}</span>
+      </div>
       ${excerpt ? `<p class="stamp-excerpt">${escapeHtml(truncate(excerpt, 220))}</p>` : ""}
       <div class="stamp-actions">
-        <button class="btn-secondary stamp-copy" data-level="${escapeHtml(level)}" data-rationale="${escapeHtml(rationale)}" data-excerpt="${escapeHtml(excerpt || "")}" title="Copy as Markdown">Copy as Markdown</button>
+        <button class="btn-secondary stamp-copy" 
+          data-level="${escapeHtml(level)}" 
+          data-rationale="${escapeHtml(rationale)}" 
+          data-citation="${escapeHtml(citation || "")}"
+          data-confidence="${escapeHtml(confidence || "")}"
+          data-borderline="${borderline}"
+          data-alternative-levels="${escapeHtml((alternativeLevels || []).join(", "))}"
+          data-excerpt="${escapeHtml(excerpt || "")}" 
+          title="Copy as Markdown">Copy as Markdown</button>
+        <button class="btn-secondary stamp-override" title="Override classification">Override</button>
       </div>
     </div>
   `;
@@ -663,12 +697,106 @@ function renderStamp(container, { level, rationale, excerpt }) {
   // Attach copy handler
   container.querySelector(".stamp-copy").addEventListener("click", (e) => {
     const btn = e.currentTarget;
-    const md = `## ClauseRadar — Classification\n\n**Level:** ${btn.dataset.level}\n\n**Rationale:** ${btn.dataset.rationale}\n\n**Excerpt:**\n> ${btn.dataset.excerpt.replace(/\n/g, "\n> ")}\n\n---\n*Classified ${new Date().toLocaleString()}*`;
+    const md = buildClassifyMarkdown({
+      level: btn.dataset.level,
+      rationale: btn.dataset.rationale,
+      citation: btn.dataset.citation,
+      confidence: btn.dataset.confidence,
+      borderline: btn.dataset.borderline === "true",
+      alternativeLevels: btn.dataset.alternativeLevels ? btn.dataset.alternativeLevels.split(", ").filter(Boolean) : [],
+      excerpt: btn.dataset.excerpt
+    });
     navigator.clipboard.writeText(md);
     const orig = btn.textContent;
     btn.textContent = "Copied!";
     setTimeout(() => { btn.textContent = orig; }, 1500);
   });
+
+  // Attach override handler
+  container.querySelector(".stamp-override").addEventListener("click", (e) => {
+    showOverrideDialog(container, {
+      level: container.querySelector(".stamp").textContent,
+      rationale,
+      citation,
+      confidence,
+      borderline,
+      alternativeLevels,
+      excerpt: text
+    });
+  });
+}
+
+function buildClassifyMarkdown({ level, rationale, citation, confidence, borderline, alternativeLevels, excerpt }) {
+  let md = `## ClauseRadar — Classification\n\n`;
+  md += `**Level:** ${level}\n\n`;
+  md += `**Rationale:** ${rationale}\n\n`;
+  if (citation) md += `**Citation:** ${citation}\n\n`;
+  if (confidence) md += `**Confidence:** ${confidence.charAt(0).toUpperCase() + confidence.slice(1)}\n\n`;
+  if (borderline) md += `**Borderline:** Yes\n\n`;
+  if (alternativeLevels && alternativeLevels.length > 0) md += `**Alternative levels to consider:** ${alternativeLevels.join(", ")}\n\n`;
+  if (excerpt) md += `**Excerpt:**\n> ${excerpt.replace(/\n/g, "\n> ")}\n\n`;
+  md += `---\n*Classified ${new Date().toLocaleString()}*`;
+  return md;
+}
+
+function showOverrideDialog(container, original) {
+  const overrideHtml = `
+    <div class="override-dialog" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border: 1px solid var(--rule); border-radius: var(--radius); padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; max-width: 400px; width: 90%;">
+      <div style="position: absolute; top: 10px; right: 10px; cursor: pointer; font-size: 18px;" onclick="this.closest('.override-dialog').remove()">×</div>
+      <h3 style="margin-top: 0; font-family: 'IBM Plex Sans', sans-serif;">Override Classification</h3>
+      <p style="font-size: 12px; color: var(--ink-soft); margin-bottom: 16px;">Original: <strong>${original.level}</strong> — ${original.rationale}</p>
+      <label style="display: block; margin-bottom: 8px;">
+        <span class="field-label">New Level</span>
+        <select id="override-level" style="width: 100%; padding: 8px; border: 1px solid var(--rule); border-radius: var(--radius); font-family: inherit;">
+          <option value="Critical" ${original.level === "Critical" ? "selected" : ""}>Critical</option>
+          <option value="Minor" ${original.level === "Minor" ? "selected" : ""}>Minor</option>
+          <option value="Administrative" ${original.level === "Administrative" ? "selected" : ""}>Administrative</option>
+        </select>
+      </label>
+      <label style="display: block; margin-bottom: 8px;">
+        <span class="field-label">Reason for Override</span>
+        <textarea id="override-reason" placeholder="Explain why you're changing the classification..." style="width: 100%; min-height: 80px; padding: 8px; border: 1px solid var(--rule); border-radius: var(--radius); font-family: inherit;"></textarea>
+      </label>
+      <div style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button class="btn-secondary" onclick="this.closest('.override-dialog').remove()">Cancel</button>
+        <button class="btn-primary" id="override-confirm">Confirm Override</button>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML("beforeend", overrideHtml);
+  
+  document.getElementById("override-confirm").addEventListener("click", () => {
+    const newLevel = document.getElementById("override-level").value;
+    const reason = document.getElementById("override-reason").value.trim();
+    if (!reason) {
+      alert("Please provide a reason for the override.");
+      return;
+    }
+    document.querySelector(".override-dialog").remove();
+    
+    // Re-render stamp with override info
+    renderStamp(container, {
+      ...original,
+      level: newLevel,
+      rationale: `${original.rationale} [OVERRIDE: ${reason}]`,
+      override: { originalLevel: original.level, reason, timestamp: new Date().toISOString() }
+    });
+    
+    // Update history with override
+    updateHistoryWithOverride(original.text || "", newLevel, reason, original.level);
+  });
+}
+
+async function updateHistoryWithOverride(text, newLevel, reason, originalLevel) {
+  const { [HISTORY_KEY]: history = [] } = await chrome.storage.local.get(HISTORY_KEY);
+  const latest = history.find(h => h.type === "classify" && h.text === text);
+  if (latest) {
+    latest.level = newLevel;
+    latest.rationale = `${latest.rationale} [OVERRIDE: ${reason}]`;
+    latest.override = { originalLevel, reason, timestamp: new Date().toISOString() };
+    await chrome.storage.local.set({ [HISTORY_KEY]: history });
+    refreshHistory();
+  }
 }
 
 function escapeHtml(str = "") {
@@ -688,6 +816,10 @@ async function runClassify(text) {
     renderStamp(classifyResult, {
       level: data.level,
       rationale: data.rationale,
+      citation: data.citation,
+      confidence: data.confidence,
+      borderline: data.borderline,
+      alternativeLevels: data.alternativeLevels,
       excerpt: text
     });
     // Save to history
@@ -696,6 +828,10 @@ async function runClassify(text) {
       text,
       level: data.level,
       rationale: data.rationale,
+      citation: data.citation,
+      confidence: data.confidence,
+      borderline: data.borderline,
+      alternativeLevels: data.alternativeLevels,
       sourceUrl: (await chrome.storage.local.get("pendingSelection")).pendingSelection?.sourceUrl || ""
     });
     refreshHistory();
@@ -748,13 +884,20 @@ compareB.addEventListener("input", () => {
 });
 
 function renderDiffTable(container, rows) {
-  const body = rows.map((r) => `
-    <tr>
-      <td>${escapeHtml(r.clause || "")}</td>
-      <td>${escapeHtml(r.change || "")}</td>
-      <td><span class="diff-tag ${(r.level || "administrative").toLowerCase()}">${escapeHtml(r.level || "")}</span></td>
-    </tr>
-  `).join("");
+  const body = rows.map((r) => {
+    const badge = r.borderline ? `<span class="borderline-badge" title="Borderline classification">⚠</span>` : "";
+    const confidenceLabel = r.confidence ? `<span class="confidence-badge confidence-${r.confidence}">${r.confidence.charAt(0).toUpperCase() + r.confidence.slice(1)}</span>` : "";
+    const altLevels = r.alternativeLevels && r.alternativeLevels.length > 0 
+      ? `<span class="alt-levels-badge" title="Alternative levels to consider">${r.alternativeLevels.join(", ")}</span>` 
+      : "";
+    return `
+      <tr data-citation="${escapeHtml(r.citation || "")}">
+        <td>${escapeHtml(r.clause || "")}</td>
+        <td>${escapeHtml(r.change || "")}${r.citation ? `<div class="diff-citation">Citation: ${escapeHtml(r.citation)}</div>` : ""}</td>
+        <td><span class="diff-tag ${(r.level || "administrative").toLowerCase()}">${escapeHtml(r.level || "")}</span> ${badge} ${confidenceLabel} ${altLevels}</td>
+      </tr>
+    `;
+  }).join("");
   container.innerHTML = `
     <table class="diff-table">
       <thead><tr><th>Clause</th><th>What changed</th><th>Impact</th></tr></thead>
@@ -769,7 +912,12 @@ function renderDiffTable(container, rows) {
   container.querySelector(".diff-copy").addEventListener("click", () => {
     let md = `## ClauseRadar — Comparison\n\n`;
     rows.forEach((row) => {
-      md += `### ${row.clause || "Change"}\n**Impact:** ${row.level}\n\n**Change:** ${row.change}\n\n---\n`;
+      md += `### ${row.clause || "Change"}\n**Impact:** ${row.level}\n\n**Change:** ${row.change}\n`;
+      if (row.citation) md += `**Citation:** ${row.citation}\n`;
+      if (row.confidence) md += `**Confidence:** ${row.confidence.charAt(0).toUpperCase() + row.confidence.slice(1)}\n`;
+      if (row.borderline) md += `**Borderline:** Yes\n`;
+      if (row.alternativeLevels && row.alternativeLevels.length > 0) md += `**Alternative levels to consider:** ${row.alternativeLevels.join(", ")}\n`;
+      md += `\n---\n`;
     });
     md += `*Compared ${new Date().toLocaleString()}*`;
     navigator.clipboard.writeText(md);
