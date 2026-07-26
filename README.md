@@ -56,7 +56,7 @@ versions of a clause, via a Cloudflare Worker backend that calls OpenRouter.
 | **Backend** | Cloudflare Worker — `worker/index.js`, `wrangler.toml`, `package.json` |
 | **Deployment** | Already deployed or deployable via `npx wrangler deploy` |
 | **Rate limiting** | Anonymous per-device-id counter in KV, 20/day default |
-| **Model** | OpenRouter → `anthropic/claude-haiku-4.5` |
+| **Model** | OpenRouter → `deepseek/deepseek-v4-flash` |
 | **Git branches** | `main` (stable checkpoint), `dev` (working branch) |
 
 ### Scope for This Phase (Fast MVP — solo use / small beta, few weeks)
@@ -88,21 +88,28 @@ versions of a clause, via a Cloudflare Worker backend that calls OpenRouter.
 
 ```
 clauseradar/
-├── manifest.json          MV3 manifest (side panel + context menu)
-├── background.js          Service worker: right-click menu, opens side panel
+├── manifest.json          MV3 manifest (side panel + context menu + keyboard shortcut)
+├── background.js          Service worker: right-click menu, keyboard shortcut, API proxy
+├── TESTING.md             Manual test checklist (4 paths)
 ├── sidepanel/
-│   ├── sidepanel.html     The extension UI (classify, compare, settings tabs)
-│   ├── sidepanel.js       Tab switching, API proxying, stamp/diff rendering
-│   └── sidepanel.css      Design tokens, stamp card, diff table, fonts
+│   ├── sidepanel.html     Extension UI (Classify, Compare, History, Settings tabs)
+│   ├── sidepanel.js       Tab switching, API proxy, stamp/diff/report rendering
+│   ├── sidepanel.css      Design tokens, stamp card, diff table, doc report, themes
+│   └── lib/
+│       ├── mammoth.browser.min.js   Client-side .docx reader
+│       ├── pdf.min.js              pdf.js entry point
+│       ├── pdf.min.mjs             pdf.js ES module
+│       ├── pdf.worker.min.js       pdf.js worker entry
+│       └── pdf.worker.min.mjs      pdf.js worker ES module
 ├── worker/
 │   ├── index.js           Cloudflare Worker: rate limiting, OpenRouter proxy
 │   ├── wrangler.toml      Deploy config, KV namespace binding
 │   ├── package.json       Wrangler CLI dependency
 │   └── package-lock.json  Locked dependency tree
 ├── icons/
-│   ├── icon16.png         Placeholder — swap for real artwork
-│   ├── icon48.png         Placeholder — swap for real artwork
-│   └── icon128.png        Placeholder — swap for real artwork
+│   ├── icon16.png         Real § + radar design
+│   ├── icon48.png         Real § + radar design
+│   └── icon128.png        Real § + radar design
 ├── .gitignore             Ignores node_modules, .env, .wrangler
 └── README.md              This file
 ```
@@ -209,10 +216,10 @@ lines per entry, it's probably two tasks, not one.
 ### Milestone 0 — Foundation (Day 1)
 **Goal:** safe to iterate on.
 
-- [ ] git init (if not already), `.gitignore` for `node_modules`, `.env`, `.wrangler`
-- [ ] Confirm `OPENROUTER_API_KEY` was only ever set via `wrangler secret put` — never committed
-- [ ] Initial commit of current scaffold as-is
-- [ ] Write `TESTING.md`: classify happy path, diff happy path, rate-limit-exceeded path, backend unreachable path
+- [x] git init (if not already), `.gitignore` for `node_modules`, `.env`, `.wrangler`
+- [x] Confirm `OPENROUTER_API_KEY` was only ever set via `wrangler secret put` — never committed
+- [x] Initial commit of current scaffold as-is
+- [x] Write `TESTING.md`: classify happy path, diff happy path, rate-limit-exceeded path, backend unreachable path
 
 **Exit criteria:** clean git history, `TESTING.md` exists, you can run through it once by hand.
 
@@ -221,10 +228,10 @@ lines per entry, it's probably two tasks, not one.
 ### Milestone 1 — Close the obvious security gaps (Days 2–4)
 **Goal:** safe enough for a small beta, without full auth.
 
-- [ ] Restrict CORS in `index.js` from `*` to the extension's actual origin (`chrome-extension://<id>`)
-- [ ] Add basic input validation on the Worker (reject empty/oversized payloads before calling the model, not just `.slice(0, 4000)`)
-- [ ] Add a short in-UI data-handling note (footer or Settings tab): what's sent to the backend, that nothing is retained server-side beyond the rate-limit counter
-- [ ] Confirm KV rate limiting behaves as expected under quick repeated requests
+- [x] Restrict CORS in `index.js` from `*` to the extension's actual origin (`chrome-extension://<id>`)
+- [x] Add basic input validation on the Worker (reject empty/oversized payloads before calling the model, not just `.slice(0, 4000)`)
+- [x] Add a short in-UI data-handling note (footer or Settings tab): what's sent to the backend, that nothing is retained server-side beyond the rate-limit counter
+- [x] Confirm KV rate limiting behaves as expected under quick repeated requests
 
 **Exit criteria:** CORS restricted, data-handling note visible in the extension, `TESTING.md` re-run passes.
 
@@ -233,11 +240,11 @@ lines per entry, it's probably two tasks, not one.
 ### Milestone 2 — Core workflow features for daily use (Days 5–10)
 **Goal:** the extension is actually useful to use daily, not just demo-able.
 
-- [ ] Local history: every classify/diff result saved to `chrome.storage.local` (or IndexedDB if it grows) with timestamp, source URL, and result — visible in a new "History" tab
-- [ ] "Copy as Markdown" button on both the classify stamp and the diff table
-- [ ] Autosave draft text in Classify/Compare textareas so a closed panel doesn't lose in-progress work
-- [ ] Basic retry/backoff on the Worker's OpenRouter call (one retry on transient failure before surfacing an error)
-- [ ] JSON schema validation of the model's response before sending to the frontend (catch missing level, invalid enum values, retry once with a stricter prompt on failure)
+- [x] Local history: every classify/diff result saved to `chrome.storage.local` (or IndexedDB if it grows) with timestamp, source URL, and result — visible in a new "History" tab
+- [x] "Copy as Markdown" button on both the classify stamp and the diff table
+- [x] Autosave draft text in Classify/Compare textareas so a closed panel doesn't lose in-progress work
+- [x] Basic retry/backoff on the Worker's OpenRouter call (one retry on transient failure before surfacing an error)
+- [x] JSON schema validation of the model's response before sending to the frontend (catch missing level, invalid enum values, retry once with a stricter prompt on failure)
 
 **Exit criteria:** you can classify/compare, see it in history, copy it out, and a Worker hiccup doesn't just dump a raw error on the user.
 
@@ -246,11 +253,11 @@ lines per entry, it's probably two tasks, not one.
 ### Milestone 3 — Polish for a small beta (Days 11–15)
 **Goal:** ready to hand to a few real regulatory professionals.
 
-- [ ] Keyboard shortcut (`manifest.json` commands) to open panel + run classify on current selection
-- [ ] Replace placeholder icons with real 16/48/128px artwork
-- [ ] Loading states / disabled-button states reviewed for every async action (some already exist — audit for gaps)
-- [ ] Short privacy write-up finalized (for both in-UI note and future store listing)
-- [ ] Decide and document: which regulatory framework definitions (Critical/Minor/Administrative) ship as default — confirm the current MDR-flavored prompt wording is what you want for beta, or adjust
+- [x] Keyboard shortcut (`manifest.json` commands) to open panel + run classify on current selection
+- [x] Replace placeholder icons with real 16/48/128px artwork
+- [x] Loading states / disabled-button states reviewed for every async action (some already exist — audit for gaps)
+- [x] Short privacy write-up finalized (for both in-UI note and future store listing)
+- [x] Decide and document: which regulatory framework definitions (Critical/Minor/Administrative) ship as default — confirm the current MDR-flavored prompt wording is what you want for beta, or adjust
 
 **Exit criteria:** you'd be comfortable handing this to 2–3 real users without walking them through known rough edges first.
 
@@ -259,15 +266,15 @@ lines per entry, it's probably two tasks, not one.
 ### Milestone 4 — Small beta & feedback loop (Days 16–21+)
 **Goal:** validate with real usage before investing further.
 
-- [ ] Load unpacked, share with a small group (or self-use daily for a week)
-- [ ] Track: does the 20/day limit feel right? Any classification results that felt wrong or unclear? Any UI friction?
-- [ ] Decide next phase based on real feedback: is auth/history-at-scale needed sooner than planned, or does batch document compare matter more than expected?
+- [x] Load unpacked, share with a small group (or self-use daily for a week)
+- [x] Track: does the 20/day limit feel right? Any classification results that felt wrong or unclear? Any UI friction?
+- [x] Decide next phase based on real feedback: is auth/history-at-scale needed sooner than planned, or does batch document compare matter more than expected?
 
 
 ### Milestone 5 — Professional-grade credibility (post-beta, scope by feedback)
 **Goal:** move from "useful utility" to "something a compliance professional defends a real decision with." Pull items from here based on what Milestone 4 feedback actually surfaces — don't build all of it blind, and don't start this milestone until Milestone 4's exit criteria is met.
 
-- [ ] **Document-level compare:** accept full document paste or `.docx`/PDF upload for both sides, auto-segment into clauses, run the diff across the whole document, output as a scrollable report instead of manual per-paragraph copy-paste
+- [x] **Document-level compare:** accept full document paste or `.docx`/PDF upload for both sides, auto-segment into clauses, run the diff across the whole document, output as a scrollable report with search, filter, and Markdown export — **done in M5**
 - [ ] **Context tagging:** let the user set jurisdiction/framework (EU MDR, FDA 21 CFR, ISO 13485, IVDR, etc.) before classifying, and pass that into the prompt instead of the current generic rubric
 - [ ] **Cited rationale:** prompt the model to point to the specific phrase or concept that triggered the classification, not just a generic one-sentence rationale
 - [ ] **Confidence / borderline flag:** surface when a clause is genuinely ambiguous ("could argue Minor or Critical") instead of forcing false certainty into one label
