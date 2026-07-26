@@ -646,7 +646,8 @@ function attachReportListeners(container, sections, frameworks) {
         if (matchesSearch && matchesLevel) anyVisible = true;
       });
       sectionEl.style.display = anyVisible ? "" : "none";
-    }
+    });
+  }
 
   searchInput?.addEventListener("input", applyFilters);
   levelCheckboxes.forEach(cb => cb.addEventListener("change", applyFilters));
