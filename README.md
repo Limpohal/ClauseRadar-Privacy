@@ -59,27 +59,27 @@ versions of a clause, via a Cloudflare Worker backend that calls OpenRouter.
 | **Model** | OpenRouter → `deepseek/deepseek-v4-flash` |
 | **Git branches** | `main` (stable checkpoint), `dev` (working branch) |
 
-### Scope for This Phase (Fast MVP — solo use / small beta, few weeks)
+### Scope for This Phase (Milestones 0–5 — ALL COMPLETE)
 
-**In scope (Milestones 0–4):**
+**Built and shipped (M0–M5):**
 - Classify a clause → Critical / Minor / Administrative
 - Compare two clause versions → rated diff table
-- Anonymous device-ID rate limiting (KV)
+- Document-level compare: full document paste or `.docx`/PDF upload, auto-segmentation, scrollable report with search/filter/stats/export
+- Context tagging: multi-select jurisdiction/framework checkboxes (EU MDR, FDA 21 CFR, ISO 13485, IVDR, etc.)
+- Cited rationale, confidence / borderline flag, user override + reasoning, export upgrade
+- Anonymous device-ID rate limiting (KV, 20/day)
 - OpenRouter as model provider
 - Local history, Markdown copy, retry/backoff (Milestone 2)
 - Polish, keyboard shortcut, real icons, loading states (Milestone 3)
 
-**Explicitly out of scope until Milestone 5+ feedback:**
-- Document-level compare: accept full document paste or `.docx`/PDF upload for both sides, auto-segment into clauses, run the diff across the whole document
-- Context tagging: let the user set jurisdiction/framework (EU MDR, FDA 21 CFR, ISO 13485, IVDR, etc.) before classifying
-- Cited rationale, confidence / borderline flag, user override + reasoning, export upgrade
+**Still deferred (post-M5 — scoped by real user feedback):**
 - Google/`chrome.identity` sign-in and per-user quotas
 - Shared/team workspace for classifications (beyond local history)
 - Watchlist / `chrome.alarms` polling for regulatory page changes
 - Switching off OpenRouter to direct Anthropic API
 - Selective stronger-model routing (e.g. Haiku for single clauses, a stronger model for full document compare)
 
-> These aren't rejected — they're sequenced after Milestone 4 feedback and Milestone 5
+> These aren't rejected — they're sequenced after Milestone 5 user feedback
 > tells you which one actually matters most next.
 
 ---
@@ -287,7 +287,7 @@ lines per entry, it's probably two tasks, not one.
 
 ## Before publishing to the Chrome Web Store
 
-- Replace the placeholder icons in `icons/` with real artwork (16/48/128 px)
+- ~~Replace the placeholder icons~~ — ✅ done in Milestone 3 (custom § + radar design)
 - Write a short privacy note: the extension sends selected/pasted text to your backend
   for classification — say so plainly in the store listing
 - Decide on a paid tier if you want the backend cost to be self-sustaining once there's traffic
@@ -295,7 +295,7 @@ lines per entry, it's probably two tasks, not one.
 
 ---
 
-## Deferred (explicitly out of scope until Milestone 5+ feedback)
+## Deferred (post-Milestone 5 — all M5 items shipped, these remain)
 
 - Google/`chrome.identity` sign-in and per-user quotas
 - Shared/team workspace for classifications (beyond local history)
@@ -303,4 +303,4 @@ lines per entry, it's probably two tasks, not one.
 - Switching off OpenRouter to direct Anthropic API
 - Selective stronger-model routing (e.g. Haiku for single clauses, a stronger model for full document compare)
 
-These aren't rejected — they're sequenced after Milestone 4 feedback and Milestone 5 tells you which one actually matters most next.
+These aren't rejected — M5 complete. Next priorities decided by real user feedback.
