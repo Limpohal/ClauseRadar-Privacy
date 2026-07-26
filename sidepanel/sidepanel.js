@@ -255,6 +255,108 @@ async function loadDocumentDrafts() {
 }
 loadDocumentDrafts();
 
+// ---- File upload handling ----
+const fileInputA = document.getElementById("file-input-a");
+const fileInputB = document.getElementById("file-input-b");
+const dropZoneA = document.getElementById("drop-zone-a");
+const dropZoneB = document.getElementById("drop-zone-b");
+const fileNameDisplayA = document.getElementById("file-name-a");
+const fileNameDisplayB = document.getElementById("file-name-b");
+
+// Drag and drop handlers
+function setupDropZone(dropZone, fileInput, fileNameDisplay, textarea, draftKey) {
+  // Click to open file dialog
+  dropZone.addEventListener("click", (e) => {
+    if (e.target !== fileNameDisplay && !e.target.closest(".file-remove")) {
+      fileInput.click();
+    }
+  });
+
+  // Drag over
+  dropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropZone.classList.add("drag-over");
+  });
+
+  dropZone.addEventListener("dragleave", () => {
+    dropZone.classList.remove("drag-over");
+  });
+
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.classList.remove("drag-over");
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file, fileInput, fileNameDisplay, textarea, draftKey);
+  });
+
+  // File input change
+  fileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) handleFile(file, fileInput, fileNameDisplay, textarea, draftKey);
+  });
+
+  // Remove file
+  fileNameDisplay.addEventListener("click", (e) => {
+    if (e.target.closest(".file-remove")) {
+      e.stopPropagation();
+      fileInput.value = "";
+      textarea.value = "";
+      fileNameDisplay.style.display = "none";
+      clearDraft(draftKey);
+    }
+  });
+}
+
+async function handleFile(file, fileInput, fileNameDisplay, textarea, draftKey) {
+  if (!file.type.match(/text\/plain|text\/markdown|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document|application\/pdf/)) {
+    alert("Unsupported file type. Please use .txt, .md, .docx, or .pdf");
+    fileInput.value = "";
+    return;
+  }
+
+  fileNameDisplay.querySelector(".file-name").textContent = file.name;
+  fileNameDisplay.style.display = "flex";
+
+  try {
+    let text = "";
+    if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+      // .docx - use global mammoth from CDN
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      text = result.value;
+    } else if (file.type === "application/pdf") {
+      // .pdf - use global pdfjsLib from CDN
+      const arrayBuffer = await file.arrayBuffer();
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.js`;
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const textPromises = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        textPromises.push(content.items.map(item => item.str).join(" "));
+      }
+      text = (await Promise.all(textPromises)).join("\n\n");
+    } else {
+      // .txt, .md
+      text = await file.text();
+    }
+
+    textarea.value = text;
+    debouncedSaveDraft(draftKey, text);
+  } catch (err) {
+    console.error("File read error:", err);
+    alert("Failed to read file: " + err.message);
+    fileInput.value = "";
+    fileNameDisplay.style.display = "none";
+  }
+}
+
+const dropZoneAKeys = { fileInput: fileInputA, fileNameDisplay: fileNameDisplayA, textarea: compareDocA, draftKey: DRAFT_COMPARE_DOC_A_KEY };
+const dropZoneBKeys = { fileInput: fileInputB, fileNameDisplay: fileNameDisplayB, textarea: compareDocB, draftKey: DRAFT_COMPARE_DOC_B_KEY };
+
+setupDropZone(dropZoneA, fileInputA, fileNameDisplayA, compareDocA, DRAFT_COMPARE_DOC_A_KEY);
+setupDropZone(dropZoneB, fileInputB, fileNameDisplayB, compareDocB, DRAFT_COMPARE_DOC_B_KEY);
+
 // ---- Document segmentation helper ----
 function segmentDocument(text) {
   const lines = text.split(/\r?\n/);
