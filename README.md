@@ -30,37 +30,21 @@ versions of a clause, via a Cloudflare Worker backend that calls OpenRouter.
    without asking.
 7. **If you're unsure whether a change is in scope** for the current milestone, ask
    rather than assuming.
-
-### Git Sync
-
-- This repo is **private on GitHub**, used as a safety net / backup — not for external
-  collaboration or review.
-- After every completed, working task: `git add` + `git commit` locally with a message
-  explaining **what changed and why**, then `git push origin dev` immediately so work
-  is always backed up.
-- **Never push directly to `main`** and **never force-push anything** without asking.
-  - `main` = last-known-good checkpoint to roll back to if a session goes sideways.
-  - `dev` = working history, all commits land here.
-- **Secrets discipline** applies regardless of the repo being private: never commit
-  `.env` files, API keys, or Wrangler credentials, full stop.
-
-### Obsidian Sync
-
-- After every completed task, append one entry to:
-  `~/Documents/OdysseusVault/04-Projects/ClauseRadar/dev-log.md`
-- Create it from the template below if it doesn't exist yet.
-- Do **not** create new notes elsewhere in the vault, do **not** edit any existing note
-  other than `dev-log.md`, and do **not** rewrite past entries — only append.
+8. **GIT SYNC: this repo is private on GitHub**, used as a safety net / backup — not
+   for external collaboration or review. After every completed, working task: `git add`
+   + `git commit` locally with a message explaining **what changed and why**, then
+   `git push origin dev` immediately so work is always backed up. **Never push directly
+   to `main`** and **never force-push anything** without asking. `main` stays as your
+   last-known-good checkpoint to roll back to if a session goes sideways, `dev` is the
+   working history. **Secrets discipline** applies regardless of the repo being private:
+   never commit `.env` files, API keys, or Wrangler credentials, full stop.
+9. **OBSIDIAN SYNC: after every completed task**, append one entry to
+   `~/Documents/OdysseusVault/04-Projects/ClauseRadar/dev-log.md` (create it from the
+   template in Part 3 below if it doesn't exist yet). Do **not** create new notes
+   elsewhere in the vault, do **not** edit any existing note other than `dev-log.md`,
+   and do **not** rewrite past entries — only append.
 
 ### Working Style
-
-- Work **one milestone at a time**, in the order listed in the roadmap below.
-- Within a milestone, work **one task at a time**. Commit after each working task with
-  a clear commit message explaining **why**, not just what.
-- **Flag** anything that looks like a security or data-handling issue, even if it's
-  outside the current milestone's scope — don't fix it silently, just flag it.
-- If you hit context or rate limits mid-task, stop cleanly at a commit boundary rather
-  than leaving half-finished edits.
 
 ---
 
@@ -77,7 +61,7 @@ versions of a clause, via a Cloudflare Worker backend that calls OpenRouter.
 
 ### Scope for This Phase (Fast MVP — solo use / small beta, few weeks)
 
-**In scope:**
+**In scope (Milestones 0–4):**
 - Classify a clause → Critical / Minor / Administrative
 - Compare two clause versions → rated diff table
 - Anonymous device-ID rate limiting (KV)
@@ -85,15 +69,18 @@ versions of a clause, via a Cloudflare Worker backend that calls OpenRouter.
 - Local history, Markdown copy, retry/backoff (Milestone 2)
 - Polish, keyboard shortcut, real icons, loading states (Milestone 3)
 
-**Explicitly out of scope (deferred — do not build):**
+**Explicitly out of scope until Milestone 5+ feedback:**
+- Document-level compare: accept full document paste or `.docx`/PDF upload for both sides, auto-segment into clauses, run the diff across the whole document
+- Context tagging: let the user set jurisdiction/framework (EU MDR, FDA 21 CFR, ISO 13485, IVDR, etc.) before classifying
+- Cited rationale, confidence / borderline flag, user override + reasoning, export upgrade
 - Google/`chrome.identity` sign-in and per-user quotas
-- Document-level batch compare (full doc upload + auto-segmentation)
-- Custom/selectable classification frameworks (FDA vs MDR vs GxP)
-- Watchlist / `chrome.alarms` polling feature
+- Shared/team workspace for classifications (beyond local history)
+- Watchlist / `chrome.alarms` polling for regulatory page changes
 - Switching off OpenRouter to direct Anthropic API
+- Selective stronger-model routing (e.g. Haiku for single clauses, a stronger model for full document compare)
 
-> These aren't rejected — they're sequenced after real beta feedback tells you which
-> one actually matters first.
+> These aren't rejected — they're sequenced after Milestone 4 feedback and Milestone 5
+> tells you which one actually matters most next.
 
 ---
 
@@ -177,6 +164,46 @@ Paste that into the extension's **Settings** tab and hit Save.
 
 ---
 
+## Git & Obsidian Sync Setup (do this once, before Milestone 0)
+
+### Git branch setup
+
+```bash
+git checkout -b dev
+git push -u origin dev
+```
+
+This repo is private, used purely as a safety net for solo work — not for external
+review. Work happens on `dev`, and the agent pushes there after every task so nothing
+is ever more than one task away from being backed up. `main` only moves when you
+deliberately merge into it, so it always represents a known-good state you can roll
+back to if a session leaves the working branch broken.
+
+### Obsidian dev-log template
+
+Create `~/Documents/OdysseusVault/04-Projects/ClauseRadar/dev-log.md` with this
+starting structure, and have the agent append one entry per completed task in this
+exact format:
+
+```markdown
+# ClauseRadar Dev Log
+
+## YYYY-MM-DD — Milestone X, Task: <short name>
+- **What changed:** <one line>
+- **Why:** <one line>
+- **Files touched:** <list>
+- **Commit:** <short hash>
+- **Tested:** <how, or N/A for setup>
+- **Follow-ups / open questions:** <or "none">
+```
+
+Each new entry goes at the **bottom**, one task = one entry. Keep entries short — this
+is a log to scan quickly across sessions and tools (Odysseus one day, Kimi Code the
+next), not a full changelog. If you (the agent) find yourself writing more than ~5
+lines per entry, it's probably two tasks, not one.
+
+---
+
 ## Roadmap
 
 ### Milestone 0 — Foundation (Day 1)
@@ -237,17 +264,17 @@ Paste that into the extension's **Settings** tab and hit Save.
 - [ ] Decide next phase based on real feedback: is auth/history-at-scale needed sooner than planned, or does batch document compare matter more than expected?
 
 
-### Milestone 5 — Change-control audit trail for regulatory use (Days 22–27)
-**Goal:** every classification and comparison produces a tamper-evident audit record suitable for GxP/regulatory inspection.
+### Milestone 5 — Professional-grade credibility (post-beta, scope by feedback)
+**Goal:** move from "useful utility" to "something a compliance professional defends a real decision with." Pull items from here based on what Milestone 4 feedback actually surfaces — don't build all of it blind, and don't start this milestone until Milestone 4's exit criteria is met.
 
-- [ ] Structured audit log: each classify/compare result persisted as a JSON record with timestamp, source URL, input hash, raw model response, and final classification — stored in `chrome.storage.local` (separate from the History view)
-- [ ] Immutable append: audit records are write-once (never edited after creation) to maintain a defensible chain of custody; provide a "reason for review" field if a user wants to flag a record for later reconsideration
-- [ ] Audit log viewer: dedicated read-only "Audit" tab in the side panel that displays records sorted by timestamp with a search/filter bar and a "Copy record as JSON" button per entry
-- [ ] Bulk export: "Export audit trail" button in the Audit tab that serialises all records to a single JSON file (downloads as `clauseradar-audit-YYYY-MM-DD.json`)
-- [ ] Timestamp integrity: use `chrome.storage.local` write timestamps combined with the request timestamp to establish a time-of-decision record; optionally SHA-256 chain recent records (each record references the previous record's hash) to detect tampering
-- [ ] In-UI audit note: a sentence in both the Classify and Compare result panels reading *"This result is logged to the audit trail (view in the Audit tab)."*
+- [ ] **Document-level compare:** accept full document paste or `.docx`/PDF upload for both sides, auto-segment into clauses, run the diff across the whole document, output as a scrollable report instead of manual per-paragraph copy-paste
+- [ ] **Context tagging:** let the user set jurisdiction/framework (EU MDR, FDA 21 CFR, ISO 13485, IVDR, etc.) before classifying, and pass that into the prompt instead of the current generic rubric
+- [ ] **Cited rationale:** prompt the model to point to the specific phrase or concept that triggered the classification, not just a generic one-sentence rationale
+- [ ] **Confidence / borderline flag:** surface when a clause is genuinely ambiguous ("could argue Minor or Critical") instead of forcing false certainty into one label
+- [ ] **User override + reasoning:** let the user change the AI's classification and record why — store the override alongside the original call so it becomes part of the exportable record
+- [ ] **Export upgrade:** extend the existing Markdown export to include citation, confidence flag, and any override/reasoning per row
 
-**Exit criteria:** an auditor could open the Audit tab, browse every classification made to-date, export the full trail as JSON, and verify that records have not been retroactively altered.
+**Exit criteria:** a classification or diff result, once exported, reads like something that could support a real change-control or audit record — not just a labeled snippet.
 
 ---
 
@@ -261,38 +288,12 @@ Paste that into the extension's **Settings** tab and hit Save.
 
 ---
 
-## Dev Log Template
-
-Create `~/Documents/OdysseusVault/04-Projects/ClauseRadar/dev-log.md` with this structure.
-After every completed task, append one entry:
-
-```markdown
-# ClauseRadar Dev Log
-
-## YYYY-MM-DD — Milestone X, Task: <short name>
-- **What changed:** <one line>
-- **Why:** <one line>
-- **Files touched:** <list>
-- **Commit:** <short hash>
-- **Tested:** <how, or N/A for setup>
-- **Follow-ups / open questions:** <or "none">
-```
-
-Rules for entries:
-- Each new entry goes at the **bottom**.
-- One task = one entry.
-- Keep entries short — this is a log to scan quickly across sessions and tools
-  (Odysseus one day, Kimi Code the next), not a full changelog.
-- If you find yourself writing more than ~5 lines per entry, it's probably two tasks.
-- **Do not** create new notes elsewhere in the vault, do **not** edit any existing note
-  other than `dev-log.md`, and do **not** rewrite past entries — only append.
-
----
-
-## Deferred (explicitly out of scope for this MVP phase)
+## Deferred (explicitly out of scope until Milestone 5+ feedback)
 
 - Google/`chrome.identity` sign-in and per-user quotas
-- Document-level batch compare (full doc upload + auto-segmentation)
-- Custom/selectable classification frameworks (FDA vs MDR vs GxP)
-- Watchlist / `chrome.alarms` polling feature
+- Shared/team workspace for classifications (beyond local history)
+- Watchlist / `chrome.alarms` polling for regulatory page changes
 - Switching off OpenRouter to direct Anthropic API
+- Selective stronger-model routing (e.g. Haiku for single clauses, a stronger model for full document compare)
+
+These aren't rejected — they're sequenced after Milestone 4 feedback and Milestone 5 tells you which one actually matters most next.
