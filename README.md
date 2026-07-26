@@ -236,7 +236,18 @@ Paste that into the extension's **Settings** tab and hit Save.
 - [ ] Track: does the 20/day limit feel right? Any classification results that felt wrong or unclear? Any UI friction?
 - [ ] Decide next phase based on real feedback: is auth/history-at-scale needed sooner than planned, or does batch document compare matter more than expected?
 
-**Exit criteria:** enough real usage to make an informed call on what Milestone 5+ should be.
+
+### Milestone 5 — Change-control audit trail for regulatory use (Days 22–27)
+**Goal:** every classification and comparison produces a tamper-evident audit record suitable for GxP/regulatory inspection.
+
+- [ ] Structured audit log: each classify/compare result persisted as a JSON record with timestamp, source URL, input hash, raw model response, and final classification — stored in `chrome.storage.local` (separate from the History view)
+- [ ] Immutable append: audit records are write-once (never edited after creation) to maintain a defensible chain of custody; provide a "reason for review" field if a user wants to flag a record for later reconsideration
+- [ ] Audit log viewer: dedicated read-only "Audit" tab in the side panel that displays records sorted by timestamp with a search/filter bar and a "Copy record as JSON" button per entry
+- [ ] Bulk export: "Export audit trail" button in the Audit tab that serialises all records to a single JSON file (downloads as `clauseradar-audit-YYYY-MM-DD.json`)
+- [ ] Timestamp integrity: use `chrome.storage.local` write timestamps combined with the request timestamp to establish a time-of-decision record; optionally SHA-256 chain recent records (each record references the previous record's hash) to detect tampering
+- [ ] In-UI audit note: a sentence in both the Classify and Compare result panels reading *"This result is logged to the audit trail (view in the Audit tab)."*
+
+**Exit criteria:** an auditor could open the Audit tab, browse every classification made to-date, export the full trail as JSON, and verify that records have not been retroactively altered.
 
 ---
 

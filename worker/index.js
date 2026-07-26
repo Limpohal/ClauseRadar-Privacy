@@ -110,7 +110,7 @@ function json(obj, status = 200, corsHeaders) {
   });
 }
 
-async function callModel(systemPrompt, userPrompt, env) {
+async function callModel(systemPrompt, userPrompt, env, mode) {
   const MAX_RETRIES = 1;
   const BASE_DELAY_MS = 800;
 
@@ -146,15 +146,52 @@ async function callModel(systemPrompt, userPrompt, env) {
     const data = await res.json();
     const text = data.choices?.[0]?.message?.content?.trim() || "";
     const cleaned = text.replace(/```json|```/g, "").trim();
+    let parsed;
     try {
-      return JSON.parse(cleaned);
+      parsed = JSON.parse(cleaned);
     } catch {
       throw new Error("Model did not return valid JSON");
     }
+
+    // ---- Schema validation ----
+    const validationError = validateResponse(parsed, mode);
+    if (validationError) {
+      if (attempt < MAX_RETRIES) {
+        // Retry with stricter prompt
+        const stricterPrompt = userPrompt + "\n\nIMPORTANT: Respond with ONLY valid JSON matching the exact schema. No extra text, no markdown.";
+        return callModel(systemPrompt, stricterPrompt, env, mode);
+      }
+      throw new Error(`Model response validation failed: ${validationError}`);
+    }
+
+    return parsed;
   }
 
   // Should not reach here, but TypeScript safety
   throw new Error("Model call failed after retries");
+}
+
+function validateResponse(obj, mode) {
+  if (!obj || typeof obj !== "object") return "Response is not an object";
+
+  if (mode === "classify") {
+    if (!obj.level || !["Critical", "Minor", "Administrative"].includes(obj.level)) {
+      return "Missing or invalid 'level' (must be Critical, Minor, or Administrative)";
+    }
+    if (!obj.rationale || typeof obj.rationale !== "string" || !obj.rationale.trim()) {
+      return "Missing or empty 'rationale'";
+    }
+  } else if (mode === "diff") {
+    if (!Array.isArray(obj.rows)) return "Missing 'rows' array";
+    for (const row of obj.rows) {
+      if (!row.clause || typeof row.clause !== "string") return "Row missing 'clause'";
+      if (!row.change || typeof row.change !== "string") return "Row missing 'change'";
+      if (!row.level || !["Critical", "Minor", "Administrative"].includes(row.level)) {
+        return "Row has missing or invalid 'level'";
+      }
+    }
+  }
+  return null;
 }
 
 const CLASSIFY_SYSTEM = `You are a regulatory affairs assistant for medical device professionals.
@@ -166,7 +203,7 @@ Respond with ONLY valid JSON, no markdown: {"level": "...", "rationale": "one co
 
 async function classify(text, env) {
   if (!text || !text.trim()) throw new Error("No text provided");
-  return callModel(CLASSIFY_SYSTEM, text.slice(0, 4000), env);
+  return callModel(CLASSIFY_SYSTEM, text.slice(0, 4000), env, "classify");
 }
 
 const DIFF_SYSTEM = `You are a regulatory affairs assistant for medical device professionals.
@@ -182,5 +219,5 @@ Respond with ONLY valid JSON, no markdown:
 async function diff(textA, textB, env) {
   if (!textA || !textB) throw new Error("Both versions are required");
   const userPrompt = `PREVIOUS EDITION:\n${textA.slice(0, 4000)}\n\nNEW EDITION:\n${textB.slice(0, 4000)}`;
-  return callModel(DIFF_SYSTEM, userPrompt, env);
+  return callModel(DIFF_SYSTEM, userPrompt, env, "diff");
 }
