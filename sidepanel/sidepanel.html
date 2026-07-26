@@ -33,11 +33,33 @@
 
     <!-- COMPARE -->
     <section id="panel-compare" class="panel" data-active="false">
-      <p class="hint">Paste the old and new clause text to get a structured, significance-rated comparison.</p>
-      <label class="field-label" for="compare-a">Previous edition</label>
-      <textarea id="compare-a" placeholder="Paste the old clause text…"></textarea>
-      <label class="field-label" for="compare-b">New edition</label>
-      <textarea id="compare-b" placeholder="Paste the new clause text…"></textarea>
+      <div class="compare-mode-toggle">
+        <label class="mode-option">
+          <input type="radio" name="compare-mode" value="clause" checked>
+          <span>Clause</span>
+        </label>
+        <label class="mode-option">
+          <input type="radio" name="compare-mode" value="document">
+          <span>Document</span>
+        </label>
+      </div>
+
+      <p class="hint" id="compare-hint">Paste the old and new clause text to get a structured, significance-rated comparison.</p>
+
+      <div id="clause-mode-fields">
+        <label class="field-label" for="compare-a">Previous edition</label>
+        <textarea id="compare-a" placeholder="Paste the old clause text…"></textarea>
+        <label class="field-label" for="compare-b">New edition</label>
+        <textarea id="compare-b" placeholder="Paste the new clause text…"></textarea>
+      </div>
+
+      <div id="document-mode-fields" style="display: none;">
+        <label class="field-label" for="compare-doc-a">Previous edition (full document)</label>
+        <textarea id="compare-doc-a" placeholder="Paste the entire old document…" style="min-height: 180px;"></textarea>
+        <label class="field-label" for="compare-doc-b">New edition (full document)</label>
+        <textarea id="compare-doc-b" placeholder="Paste the entire new document…" style="min-height: 180px;"></textarea>
+      </div>
+
       <button id="compare-run" class="btn-primary">Compare versions</button>
       <div id="compare-result" class="result-slot" aria-live="polite"></div>
     </section>

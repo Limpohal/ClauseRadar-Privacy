@@ -218,7 +218,155 @@ refreshHistory();
 // Clear history button
 document.getElementById("history-clear")?.addEventListener("click", clearHistory);
 
-// ---------- Draft autosave ----------
+// ---------- Compare mode toggle ----------
+const clauseModeFields = document.getElementById("clause-mode-fields");
+const documentModeFields = document.getElementById("document-mode-fields");
+const compareHint = document.getElementById("compare-hint");
+const compareDocA = document.getElementById("compare-doc-a");
+const compareDocB = document.getElementById("compare-doc-b");
+
+document.querySelectorAll('input[name="compare-mode"]').forEach((radio) => {
+  radio.addEventListener("change", () => {
+    const isDocument = radio.value === "document";
+    clauseModeFields.style.display = isDocument ? "none" : "block";
+    documentModeFields.style.display = isDocument ? "block" : "none";
+    compareHint.textContent = isDocument
+      ? "Paste two full documents. They will be auto-segmented into clauses and compared."
+      : "Paste the old and new clause text to get a structured, significance-rated comparison.";
+  });
+});
+
+// Draft autosave for document mode
+const DRAFT_COMPARE_DOC_A_KEY = "clauseradar_draft_compare_doc_a";
+const DRAFT_COMPARE_DOC_B_KEY = "clauseradar_draft_compare_doc_b";
+
+compareDocA.addEventListener("input", () => {
+  debouncedSaveDraft(DRAFT_COMPARE_DOC_A_KEY, compareDocA.value);
+});
+compareDocB.addEventListener("input", () => {
+  debouncedSaveDraft(DRAFT_COMPARE_DOC_B_KEY, compareDocB.value);
+});
+
+// Load document drafts
+async function loadDocumentDrafts() {
+  const { [DRAFT_COMPARE_DOC_A_KEY]: docADraft = "", [DRAFT_COMPARE_DOC_B_KEY]: docBDraft = "" } = await chrome.storage.local.get([DRAFT_COMPARE_DOC_A_KEY, DRAFT_COMPARE_DOC_B_KEY]);
+  if (docADraft) compareDocA.value = docADraft;
+  if (docBDraft) compareDocB.value = docBDraft;
+}
+loadDocumentDrafts();
+
+// ---- Document segmentation helper ----
+function segmentDocument(text) {
+  const lines = text.split(/\r?\n/);
+  const segments = [];
+  let currentSegment = [];
+  let currentTitle = "Document Start";
+
+  for (const line of lines) {
+    const headingMatch = line.match(/^(#{2,3})\s+(.+)$/);
+    const clauseMatch = line.match(/^(\d+(\.\d+)*\.?)\s+(.+)$/);
+    const articleMatch = line.match(/^(Article|Section|Clause|Chapter)\s+\d+/i);
+
+    if (headingMatch || clauseMatch || articleMatch) {
+      if (currentSegment.length > 0) {
+        segments.push({
+          title: currentTitle,
+          text: currentSegment.join("\n").trim()
+        });
+      }
+      currentTitle = (headingMatch ? headingMatch[2] : (clauseMatch ? clauseMatch[1] : line.trim())).trim();
+      currentSegment = [line];
+    } else {
+      currentSegment.push(line);
+    }
+  }
+  if (currentSegment.length > 0) {
+    segments.push({
+      title: currentTitle,
+      text: currentSegment.join("\n").trim()
+    });
+  }
+  return segments.filter(s => s.text.length > 0);
+}
+
+// ---- Document compare report rendering ----
+function renderDocReport(container, sections) {
+  if (!sections.length) {
+    container.innerHTML = `<p class="status-line">No comparable segments found.</p>`;
+    return;
+  }
+
+  const html = sections.map((section, idx) => {
+    const rows = section.rows || [];
+    const topLevel = section.topLevel || section.title || `Section ${idx + 1}`;
+    const worstLevel = rows.length > 0
+      ? rows.reduce((worst, r) => {
+          const order = { critical: 3, minor: 2, administrative: 1 };
+          return order[r.level?.toLowerCase()] > order[worst.level?.toLowerCase()] ? r : worst;
+        }, { level: "administrative" }).level
+      : "administrative";
+    const stampClass = worstLevel.toLowerCase();
+
+    return `
+      <details class="doc-report-section" ${idx === 0 ? "open" : ""}>
+        <summary>
+          <div class="doc-report-section-header">
+            <span class="doc-report-section-title">${escapeHtml(topLevel)}</span>
+            <span class="doc-report-section-stamp ${stampClass}">${escapeHtml(worstLevel)}</span>
+          </div>
+        </summary>
+        <div class="doc-report-section-content">
+          ${rows.length > 0 ? `
+            <table class="doc-report-section-table">
+              <thead><tr><th>Clause</th><th>What changed</th><th>Impact</th></tr></thead>
+              <tbody>
+                ${rows.map(r => `
+                  <tr>
+                    <td>${escapeHtml(r.clause || "")}</td>
+                    <td>${escapeHtml(r.change || "")}</td>
+                    <td><span class="diff-tag ${(r.level || "administrative").toLowerCase()}">${escapeHtml(r.level || "")}</span></td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          ` : `<p class="status-line">No significant changes detected.</p>`}
+        </div>
+      </details>
+    `;
+  }).join("");
+
+  container.innerHTML = `
+    <div class="doc-report">${html}</div>
+    <div class="doc-report-actions">
+      <button class="btn-secondary" id="doc-report-copy">Copy full report as Markdown</button>
+    </div>
+  `;
+
+  const sectionsForCopy = sections;
+  container.querySelector("#doc-report-copy")?.addEventListener("click", () => {
+    let md = `## ClauseRadar — Document Comparison\n\n`;
+    sectionsForCopy.forEach(s => {
+      md += `### ${s.topLevel || s.title || "Section"}\n\n`;
+      if (s.rows && s.rows.length > 0) {
+        s.rows.forEach(r => {
+          md += `#### ${r.clause || "Change"}\n**Impact:** ${r.level}\n\n**Change:** ${r.change}\n\n---\n`;
+        });
+      } else {
+        md += `*No significant changes detected.*\n\n---\n`;
+      }
+    });
+    md += `*Compared ${new Date().toLocaleString()}*`;
+    navigator.clipboard.writeText(md);
+    const btn = container.querySelector("#doc-report-copy");
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    }
+  });
+}
+
+// Compare inputs: autosave drafts
 const DRAFT_CLASSIFY_KEY = "clauseradar_draft_classify";
 const DRAFT_COMPARE_A_KEY = "clauseradar_draft_compare_a";
 const DRAFT_COMPARE_B_KEY = "clauseradar_draft_compare_b";
@@ -399,6 +547,38 @@ function renderDiffTable(container, rows) {
 }
 
 compareRunBtn.addEventListener("click", async () => {
+  const isDocumentMode = document.querySelector('input[name="compare-mode"]:checked')?.value === "document";
+
+  if (isDocumentMode) {
+    // Document compare mode
+    const textA = compareDocA.value.trim();
+    const textB = compareDocB.value.trim();
+    if (!textA || !textB) {
+      compareResult.innerHTML = `<p class="status-line error">Paste both the previous and new documents.</p>`;
+      return;
+    }
+    compareRunBtn.disabled = true;
+    compareResult.innerHTML = `<p class="status-line">Segmenting and comparing documents\u2026</p>`;
+    try {
+      const data = await callBackend({ mode: "diff-doc", textA, textB });
+      renderDocReport(compareResult, data.sections || []);
+      // Save to history
+      await saveHistory({
+        type: "diff-doc",
+        textA,
+        textB,
+        sections: data.sections || []
+      });
+      refreshHistory();
+    } catch (err) {
+      compareResult.innerHTML = `<p class="status-line error">${escapeHtml(err.message)}</p>`;
+    } finally {
+      compareRunBtn.disabled = false;
+    }
+    return;
+  }
+
+  // Clause compare mode (existing)
   const textA = compareA.value.trim();
   const textB = compareB.value.trim();
   if (!textA || !textB) {

@@ -66,8 +66,9 @@ export default {
 
     // ---- Input validation ----
     const { mode, text, textA, textB } = body;
-    if (!mode || (mode !== "classify" && mode !== "diff")) {
-      return json({ error: "mode must be 'classify' or 'diff'" }, 400, corsHeaders);
+    const validModes = ["classify", "diff", "diff-doc"];
+    if (!mode || !validModes.includes(mode)) {
+      return json({ error: "mode must be 'classify', 'diff', or 'diff-doc'" }, 400, corsHeaders);
     }
     if (mode === "classify") {
       if (!text || !text.trim()) {
@@ -83,6 +84,13 @@ export default {
       if (textA.length > 10000 || textB.length > 10000) {
         return json({ error: "text too long (max 10000 characters each)" }, 400, corsHeaders);
       }
+    } else if (mode === "diff-doc") {
+      if (!textA || !textA.trim() || !textB || !textB.trim()) {
+        return json({ error: "both textA and textB are required and must not be empty" }, 400, corsHeaders);
+      }
+      if (textA.length > 50000 || textB.length > 50000) {
+        return json({ error: "text too long (max 50000 characters each for document compare)" }, 400, corsHeaders);
+      }
     }
 
     let result;
@@ -91,6 +99,8 @@ export default {
         result = await classify(text, env);
       } else if (mode === "diff") {
         result = await diff(textA, textB, env);
+      } else if (mode === "diff-doc") {
+        result = await diffDoc(textA, textB, env);
       }
     } catch (err) {
       return json({ error: err.message || "Model call failed" }, 502, corsHeaders);
@@ -220,4 +230,84 @@ async function diff(textA, textB, env) {
   if (!textA || !textB) throw new Error("Both versions are required");
   const userPrompt = `PREVIOUS EDITION:\n${textA.slice(0, 4000)}\n\nNEW EDITION:\n${textB.slice(0, 4000)}`;
   return callModel(DIFF_SYSTEM, userPrompt, env, "diff");
+}
+
+// ---- Document compare: segment + batch diff ----
+function segmentDocument(text) {
+  const lines = text.split(/\r?\n/);
+  const segments = [];
+  let currentSegment = [];
+  let currentTitle = "Document Start";
+
+  for (const line of lines) {
+    const headingMatch = line.match(/^(#{2,3})\s+(.+)$/);
+    const clauseMatch = line.match(/^(\d+(\.\d+)*\.?)\s+(.+)$/);
+    const articleMatch = line.match(/^(Article|Section|Clause|Chapter)\s+\d+/i);
+
+    if (headingMatch || clauseMatch || articleMatch) {
+      if (currentSegment.length > 0) {
+        segments.push({
+          title: currentTitle,
+          text: currentSegment.join("\n").trim()
+        });
+      }
+      currentTitle = (headingMatch ? headingMatch[2] : (clauseMatch ? clauseMatch[1] : line.trim())).trim();
+      currentSegment = [line];
+    } else {
+      currentSegment.push(line);
+    }
+  }
+  if (currentSegment.length > 0) {
+    segments.push({
+      title: currentTitle,
+      text: currentSegment.join("\n").trim()
+    });
+  }
+  return segments.filter(s => s.text.length > 0);
+}
+
+const DIFF_DOC_SYSTEM = `You are a regulatory affairs assistant for medical device professionals.
+Compare the previous and new versions of a document segment. Break the comparison into
+individual clause-level changes. For each change, classify impact exactly as "Critical", "Minor", or "Administrative"
+using the same definitions as a standard gap analysis:
+- Critical: changes conformity requirements, safety/performance obligations, or approval pathway.
+- Minor: changes process, documentation, or timelines without altering core obligations.
+- Administrative: wording, formatting, numbering, or non-substantive edits.
+Respond with ONLY valid JSON, no markdown:
+{"rows": [{"clause": "short clause label", "change": "one concise sentence describing what changed", "level": "..."}]}`;
+
+async function diffDoc(textA, textB, env) {
+  const segmentsA = segmentDocument(textA);
+  const segmentsB = segmentDocument(textB);
+
+  // Simple alignment by index (assumes similar structure)
+  const maxSegments = Math.max(segmentsA.length, segmentsB.length);
+  const sections = [];
+
+  for (let i = 0; i < maxSegments; i++) {
+    const segA = segmentsA[i] || { title: `Section ${i + 1}`, text: "" };
+    const segB = segmentsB[i] || { title: `Section ${i + 1}`, text: "" };
+
+    // Skip if both are empty
+    if (!segA.text.trim() && !segB.text.trim()) continue;
+
+    try {
+      const userPrompt = `PREVIOUS EDITION:\n${segA.text.slice(0, 3000)}\n\nNEW EDITION:\n${segB.text.slice(0, 3000)}`;
+      const diffResult = await callModel(DIFF_DOC_SYSTEM, userPrompt, env, "diff");
+      sections.push({
+        topLevel: segA.title || `Section ${i + 1}`,
+        title: segA.title,
+        rows: diffResult.rows || []
+      });
+    } catch (err) {
+      // If one segment fails, add it with error info
+      sections.push({
+        topLevel: segA.title || `Section ${i + 1}`,
+        title: segA.title,
+        rows: [{ clause: segA.title || "Segment", change: "Comparison failed", level: "Administrative" }]
+      });
+    }
+  }
+
+  return { sections };
 }
