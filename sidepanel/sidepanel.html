@@ -26,6 +26,20 @@
     <!-- CLASSIFY -->
     <section id="panel-classify" class="panel" data-active="true">
       <p class="hint">Select a clause on any page, right-click, and choose <strong>Classify regulatory impact</strong>. Or paste text directly below.</p>
+      
+      <fieldset class="framework-tags" style="margin-bottom: 12px;">
+        <legend class="field-label">Applicable framework or standard</legend>
+        <div class="framework-checkboxes">
+          <label><input type="checkbox" name="framework" value="EU MDR"> EU MDR</label>
+          <label><input type="checkbox" name="framework" value="FDA"> FDA</label>
+          <label><input type="checkbox" name="framework" value="ISO"> ISO</label>
+          <label><input type="checkbox" name="framework" value="EN"> EN</label>
+          <label><input type="checkbox" name="framework" value="ASTM"> ASTM</label>
+          <label><input type="checkbox" name="framework" value="PPER"> PPER</label>
+          <label><input type="checkbox" name="framework" value="General or Others"> General or Others</label>
+        </div>
+      </fieldset>
+      
       <textarea id="classify-input" placeholder="Paste a clause or paragraph here…"></textarea>
       <button id="classify-run" class="btn-primary">Classify impact</button>
       <div id="classify-result" class="result-slot" aria-live="polite"></div>
@@ -45,6 +59,19 @@
       </div>
 
       <p class="hint" id="compare-hint">Paste the old and new clause text to get a structured, significance-rated comparison.</p>
+
+      <fieldset class="framework-tags" style="margin-bottom: 12px;">
+        <legend class="field-label">Applicable framework or standard</legend>
+        <div class="framework-checkboxes">
+          <label><input type="checkbox" name="framework" value="EU MDR"> EU MDR</label>
+          <label><input type="checkbox" name="framework" value="FDA"> FDA</label>
+          <label><input type="checkbox" name="framework" value="ISO"> ISO</label>
+          <label><input type="checkbox" name="framework" value="EN"> EN</label>
+          <label><input type="checkbox" name="framework" value="ASTM"> ASTM</label>
+          <label><input type="checkbox" name="framework" value="PPER"> PPER</label>
+          <label><input type="checkbox" name="framework" value="General or Others"> General or Others</label>
+        </div>
+      </fieldset>
 
       <div id="clause-mode-fields">
         <label class="field-label" for="compare-a">Previous edition</label>

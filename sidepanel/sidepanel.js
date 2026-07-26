@@ -34,34 +34,67 @@ function getBackendUrl() {
   return DEFAULT_BACKEND;
 }
 
-// ---------- Framework setting ----------
-const FRAMEWORK_KEY = "clauseradar_framework";
+// ---------- Framework setting (multi-select) ----------
+const FRAMEWORKS_KEY = "clauseradar_frameworks";
 
-async function getFramework() {
-  const { framework } = await chrome.storage.local.get(FRAMEWORK_KEY);
-  return framework || "mdr";
+async function getFrameworks() {
+  const { frameworks } = await chrome.storage.local.get(FRAMEWORKS_KEY);
+  return frameworks || ["EU MDR"];
 }
 
-async function saveFramework(framework) {
-  await chrome.storage.local.set({ [FRAMEWORK_KEY]: framework });
+async function saveFrameworks(frameworks) {
+  await chrome.storage.local.set({ [FRAMEWORKS_KEY]: frameworks });
+}
+
+function initFrameworkCheckboxes(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  
+  const checkboxes = container.querySelectorAll('input[name="framework"]');
+  
+  // Load saved frameworks
+  getFrameworks().then(saved => {
+    checkboxes.forEach(cb => {
+      cb.checked = saved.includes(cb.value);
+    });
+  });
+  
+  // Save on change
+  checkboxes.forEach(cb => {
+    cb.addEventListener("change", async () => {
+      const selected = Array.from(container.querySelectorAll('input[name="framework"]:checked'))
+        .map(cb => cb.value);
+      await saveFrameworks(selected);
+    });
+  });
+  
+  return container;
+}
+
+function getSelectedFrameworks(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return ["EU MDR"];
+  return Array.from(container.querySelectorAll('input[name="framework"]:checked'))
+    .map(cb => cb.value);
 }
 
 // ── Proxy API through background service worker ──────────────────────────────
 // MV3 extension pages cannot reliably fetch() external URLs even with
 // host_permissions. The service worker has full network access and proxies for us.
-async function callBackend(payload) {
+async function callBackend(payload, containerId) {
   const backendUrl = await getBackendUrl();
   if (!backendUrl) {
     throw new Error("No backend URL configured. Set it in the Settings tab.");
   }
   const deviceId = await getDeviceId();
-  const framework = await getFramework();
+  // Get frameworks from the specified container (Classify or Compare tab)
+  const frameworks = containerId ? getSelectedFrameworks(containerId) : await getFrameworks();
 
   const response = await chrome.runtime.sendMessage({
     type: "analyze",
     backendUrl,
     deviceId,
-    payload: { ...payload, framework }
+    payload: { ...payload, frameworks }
   });
 
   if (!response.ok) {
@@ -637,18 +670,9 @@ function clearAllDrafts() {
 // Load drafts on startup
 loadDrafts();
 
-// Initialize framework selector
-async function initFrameworkSelector() {
-  const select = document.getElementById("framework-select");
-  if (select) {
-    const framework = await getFramework();
-    select.value = framework;
-    select.addEventListener("change", async () => {
-      await saveFramework(select.value);
-    });
-  }
-}
-initFrameworkSelector();
+// Initialize framework checkboxes for Classify and Compare tabs
+initFrameworkCheckboxes("panel-classify");
+initFrameworkCheckboxes("panel-compare");
 
 // ---------- Classify tab ----------
 const classifyInput = document.getElementById("classify-input");
@@ -721,7 +745,7 @@ function renderStamp(container, { level, rationale, citation, confidence, border
       confidence,
       borderline,
       alternativeLevels,
-      excerpt: text
+      excerpt: excerpt
     });
   });
 }
@@ -812,7 +836,7 @@ async function runClassify(text) {
   classifyRunBtn.disabled = true;
   classifyResult.innerHTML = `<p class="status-line">Classifying\u2026</p>`;
   try {
-    const data = await callBackend({ mode: "classify", text });
+    const data = await callBackend({ mode: "classify", text }, "panel-classify");
     renderStamp(classifyResult, {
       level: data.level,
       rationale: data.rationale,
@@ -942,7 +966,7 @@ compareRunBtn.addEventListener("click", async () => {
     compareRunBtn.disabled = true;
     compareResult.innerHTML = `<p class="status-line">Segmenting and comparing documents\u2026</p>`;
     try {
-      const data = await callBackend({ mode: "diff-doc", textA, textB });
+      const data = await callBackend({ mode: "diff-doc", textA, textB }, "panel-compare");
       renderDocReport(compareResult, data.sections || []);
       // Save to history
       await saveHistory({
@@ -970,7 +994,7 @@ compareRunBtn.addEventListener("click", async () => {
   compareRunBtn.disabled = true;
   compareResult.innerHTML = `<p class="status-line">Comparing versions\u2026</p>`;
   try {
-    const data = await callBackend({ mode: "diff", textA, textB });
+    const data = await callBackend({ mode: "diff", textA, textB }, "panel-compare");
     renderDiffTable(compareResult, data.rows || []);
     // Save to history
     await saveHistory({
