@@ -275,17 +275,19 @@ const documentModeFields = document.getElementById("document-mode-fields");
 const compareHint = document.getElementById("compare-hint");
 const compareDocA = document.getElementById("compare-doc-a");
 const compareDocB = document.getElementById("compare-doc-b");
+const clauseResult = document.getElementById("clause-result");
+const documentResult = document.getElementById("document-result");
 
 document.querySelectorAll('input[name="compare-mode"]').forEach((radio) => {
   radio.addEventListener("change", () => {
     const isDocument = radio.value === "document";
     clauseModeFields.style.display = isDocument ? "none" : "block";
     documentModeFields.style.display = isDocument ? "block" : "none";
+    clauseResult.style.display = isDocument ? "none" : "block";
+    documentResult.style.display = isDocument ? "block" : "none";
     compareHint.textContent = isDocument
       ? "Paste two full documents. They will be auto-segmented into clauses and compared."
       : "Paste the old and new clause text to get a structured, significance-rated comparison.";
-    // Clear previous results when switching modes
-    compareResult.innerHTML = "";
   });
 });
 
@@ -1109,7 +1111,6 @@ chrome.storage.onChanged.addListener((changes) => {
 const compareA = document.getElementById("compare-a");
 const compareB = document.getElementById("compare-b");
 const compareRunBtn = document.getElementById("compare-run");
-const compareResult = document.getElementById("compare-result");
 
 compareA.addEventListener("input", () => {
   debouncedSaveDraft(DRAFT_COMPARE_A_KEY, compareA.value);
@@ -1126,38 +1127,100 @@ function renderDiffTable(container, data) {
   
   // Single framework (backward compatibility)
   const rows = data.rows || [];
-  return renderSingleFrameworkDiffTable(container, rows);
+  return renderEnhancedDiffTable(container, rows);
 }
 
-function renderSingleFrameworkDiffTable(container, rows) {
-  const body = rows.map((r) => {
+function renderEnhancedDiffTable(container, rows) {
+  // Compute statistics
+  const stats = {
+    totalChanges: rows.length,
+    byLevel: { critical: 0, minor: 0, administrative: 0 }
+  };
+  rows.forEach(r => {
+    const lvl = (r.level || "administrative").toLowerCase();
+    if (stats.byLevel[lvl] !== undefined) stats.byLevel[lvl]++;
+  });
+
+  // Build filter toolbar (matching document mode style)
+  const filterHtml = `
+    <div class="doc-report-toolbar">
+      <div class="doc-report-stats">
+        <span class="stat"><span class="stat-value">${stats.totalChanges}</span> changes</span>
+        <span class="stat critical"><span class="stat-value">${stats.byLevel.critical}</span> Critical</span>
+        <span class="stat minor"><span class="stat-value">${stats.byLevel.minor}</span> Minor</span>
+        <span class="stat administrative"><span class="stat-value">${stats.byLevel.administrative}</span> Admin</span>
+      </div>
+      <div class="doc-report-filters">
+        <input type="text" id="clause-report-search" placeholder="Search clauses, changes…" class="doc-report-search">
+        <div class="doc-report-level-filters">
+          <label><input type="checkbox" value="critical" checked> Critical</label>
+          <label><input type="checkbox" value="minor" checked> Minor</label>
+          <label><input type="checkbox" value="administrative" checked> Administrative</label>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Build table rows with data-level attribute for filtering
+  const tableRows = rows.map(r => {
     const badge = r.borderline ? `<span class="borderline-badge" title="Borderline classification">⚠</span>` : "";
     const confidenceLabel = r.confidence ? `<span class="confidence-badge confidence-${r.confidence}">${r.confidence.charAt(0).toUpperCase() + r.confidence.slice(1)}</span>` : "";
     const altLevels = r.alternativeLevels && r.alternativeLevels.length > 0 
       ? `<span class="alt-levels-badge" title="Alternative levels to consider">${r.alternativeLevels.join(", ")}</span>` 
       : "";
+    const citationHtml = r.citation ? `<div class="diff-citation">Citation: ${escapeHtml(r.citation)}</div>` : "";
+    const levelClass = (r.level || "administrative").toLowerCase();
     return `
-      <tr data-citation="${escapeHtml(r.citation || "")}">
+      <tr data-level="${levelClass}">
         <td>${escapeHtml(r.clause || "")}</td>
-        <td>${escapeHtml(r.change || "")}${r.citation ? `<div class="diff-citation">Citation: ${escapeHtml(r.citation)}</div>` : ""}</td>
-        <td><span class="diff-tag ${(r.level || "administrative").toLowerCase()}">${escapeHtml(r.level || "")}</span> ${badge} ${confidenceLabel} ${altLevels}</td>
+        <td>${escapeHtml(r.change || "")}${citationHtml}</td>
+        <td><span class="diff-tag ${levelClass}">${escapeHtml(r.level || "")}</span> ${badge} ${confidenceLabel} ${altLevels}</td>
       </tr>
     `;
   }).join("");
+
   container.innerHTML = `
-    <table class="diff-table">
-      <thead><tr><th>Clause</th><th>What changed</th><th>Impact</th></tr></thead>
-      <tbody>${body}</tbody>
-    </table>
-    <div class="diff-actions">
-      <button class="btn-secondary diff-copy" title="Copy as Markdown">Copy as Markdown</button>
+    ${filterHtml}
+    <div class="doc-report">
+      <table class="doc-report-section-table">
+        <thead><tr><th>Clause</th><th>What changed</th><th>Impact</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+    <div class="doc-report-actions">
+      <button class="btn-secondary" id="clause-report-copy">Copy as Markdown</button>
+      <button class="btn-secondary" id="clause-report-download">Download .md</button>
     </div>
   `;
 
-  // Attach copy handler
-  container.querySelector(".diff-copy").addEventListener("click", () => {
-    let md = `## ClauseRadar — Comparison\n\n`;
-    rows.forEach((row) => {
+  // Attach filter listeners
+  const searchInput = container.querySelector("#clause-report-search");
+  const levelCheckboxes = container.querySelectorAll(".doc-report-level-filters input[type=checkbox]");
+
+  function applyFilters() {
+    const searchTerm = searchInput?.value.toLowerCase() || "";
+    const activeLevels = Array.from(levelCheckboxes)
+      .filter(cb => cb.checked)
+      .map(cb => cb.value);
+
+    const rowElements = container.querySelectorAll("tbody tr");
+    rowElements.forEach(row => {
+      const level = row.dataset.level;
+      const text = row.textContent.toLowerCase();
+      const matchesSearch = !searchTerm || text.includes(searchTerm);
+      const matchesLevel = activeLevels.includes(level);
+      row.style.display = matchesSearch && matchesLevel ? "" : "none";
+    });
+  }
+
+  searchInput?.addEventListener("input", applyFilters);
+  levelCheckboxes.forEach(cb => cb.addEventListener("change", applyFilters));
+
+  // Copy as Markdown
+  container.querySelector("#clause-report-copy")?.addEventListener("click", () => {
+    let md = `## ClauseRadar — Clause Comparison\n\n`;
+    md += `*Changes: ${stats.totalChanges} (Critical: ${stats.byLevel.critical}, Minor: ${stats.byLevel.minor}, Admin: ${stats.byLevel.administrative})*\n\n---\n\n`;
+    rows.forEach(row => {
       md += `### ${row.clause || "Change"}\n**Impact:** ${row.level}\n\n**Change:** ${row.change}\n`;
       if (row.citation) md += `**Citation:** ${row.citation}\n`;
       if (row.confidence) md += `**Confidence:** ${row.confidence.charAt(0).toUpperCase() + row.confidence.slice(1)}\n`;
@@ -1167,65 +1230,127 @@ function renderSingleFrameworkDiffTable(container, rows) {
     });
     md += `*Compared ${new Date().toLocaleString()}*`;
     navigator.clipboard.writeText(md);
-    const btn = container.querySelector(".diff-copy");
-    const orig = btn.textContent;
-    btn.textContent = "Copied!";
-    setTimeout(() => { btn.textContent = orig; }, 1500);
+    flashButton(container.querySelector("#clause-report-copy"), "Copied!");
+  });
+
+  // Download as .md file
+  container.querySelector("#clause-report-download")?.addEventListener("click", () => {
+    let md = `## ClauseRadar — Clause Comparison\n\n`;
+    md += `*Changes: ${stats.totalChanges} (Critical: ${stats.byLevel.critical}, Minor: ${stats.byLevel.minor}, Admin: ${stats.byLevel.administrative})*\n\n---\n\n`;
+    rows.forEach(row => {
+      md += `### ${row.clause || "Change"}\n**Impact:** ${row.level}\n\n**Change:** ${row.change}\n`;
+      if (row.citation) md += `**Citation:** ${row.citation}\n`;
+      if (row.confidence) md += `**Confidence:** ${row.confidence.charAt(0).toUpperCase() + row.confidence.slice(1)}\n`;
+      if (row.borderline) md += `**Borderline:** Yes\n`;
+      if (row.alternativeLevels && row.alternativeLevels.length > 0) md += `**Alternative levels to consider:** ${row.alternativeLevels.join(", ")}\n`;
+      md += `\n---\n`;
+    });
+    md += `*Compared ${new Date().toLocaleString()}*`;
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `clauseradar-clause-comparison-${new Date().toISOString().slice(0,10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    flashButton(container.querySelector("#clause-report-download"), "Downloaded!");
   });
 }
 
+function renderSingleFrameworkDiffTable(container, rows) {
+  // Redirect to enhanced version
+  return renderEnhancedDiffTable(container, rows);
+}
+
 function renderMultiFrameworkDiffTable(container, frameworks) {
-  let html = `<div class="multi-framework-diff">`;
-  
+  // Flatten all rows for stats
+  let allRows = [];
   frameworks.forEach(fw => {
-    html += `<div class="framework-diff-section"><h4>${escapeHtml(fw.framework)}</h4>`;
-    
-    if (!fw.rows || fw.rows.length === 0) {
-      html += `<p class="status-line">No significant changes detected.</p></div>`;
+    (fw.rows || []).forEach(r => allRows.push({ ...r, framework: fw.framework }));
+  });
+
+  // Compute overall stats
+  const stats = {
+    totalChanges: allRows.length,
+    byLevel: { critical: 0, minor: 0, administrative: 0 }
+  };
+  allRows.forEach(r => {
+    const lvl = (r.level || "administrative").toLowerCase();
+    if (stats.byLevel[lvl] !== undefined) stats.byLevel[lvl]++;
+  });
+
+  // Build filter toolbar
+  const filterHtml = `
+    <div class="doc-report-toolbar">
+      <div class="doc-report-stats">
+        <span class="stat"><span class="stat-value">${stats.totalChanges}</span> changes</span>
+        <span class="stat critical"><span class="stat-value">${stats.byLevel.critical}</span> Critical</span>
+        <span class="stat minor"><span class="stat-value">${stats.byLevel.minor}</span> Minor</span>
+        <span class="stat administrative"><span class="stat-value">${stats.byLevel.administrative}</span> Admin</span>
+      </div>
+      <div class="doc-report-filters">
+        <input type="text" id="clause-mf-report-search" placeholder="Search clauses, changes…" class="doc-report-search">
+        <div class="doc-report-level-filters">
+          <label><input type="checkbox" value="critical" checked> Critical</label>
+          <label><input type="checkbox" value="minor" checked> Minor</label>
+          <label><input type="checkbox" value="administrative" checked> Administrative</label>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Build sections HTML per framework
+  let sectionsHtml = '';
+  frameworks.forEach(fw => {
+    const fwRows = fw.rows || [];
+    if (fwRows.length === 0) {
+      sectionsHtml += `<div class="framework-report-section"><h3>${escapeHtml(fw.framework)}</h3><p class="status-line">No significant changes detected.</p></div>`;
       return;
     }
-    
-    const body = fw.rows.map(r => {
-      const badge = r.borderline ? `<span class="borderline-badge" title="Borderline classification">⚠</span>` : "";
-      const confidenceLabel = r.confidence ? `<span class="confidence-badge confidence-${r.confidence}">${r.confidence.charAt(0).toUpperCase() + r.confidence.slice(1)}</span>` : "";
-      const altLevels = r.alternativeLevels && r.alternativeLevels.length > 0 
-        ? `<span class="alt-levels-badge" title="Alternative levels to consider">${r.alternativeLevels.join(", ")}</span>` 
-        : "";
-      return `
-        <tr data-citation="${escapeHtml(r.citation || "")}">
-          <td>${escapeHtml(r.clause || "")}</td>
-          <td>${escapeHtml(r.change || "")}${r.citation ? `<div class="diff-citation">Citation: ${escapeHtml(r.citation)}</div>` : ""}</td>
-          <td><span class="diff-tag ${(r.level || "administrative").toLowerCase()}">${escapeHtml(r.level || "")}</span> ${badge} ${confidenceLabel} ${altLevels}</td>
-        </tr>
-      `;
-    }).join("");
-    
-    html += `
-      <table class="diff-table">
-        <thead><tr><th>Clause</th><th>What changed</th><th>Impact</th></tr></thead>
-        <tbody>${body}</tbody>
-      </table>
-    </div>`;
+    sectionsHtml += `<div class="framework-report-section"><h3>${escapeHtml(fw.framework)}</h3>`;
+    sectionsHtml += buildDiffTableRowsHtml(fwRows);
+    sectionsHtml += '</div>';
   });
-  
-  html += `
-    <div class="diff-actions">
-      <button class="btn-secondary diff-copy" title="Copy as Markdown">Copy as Markdown</button>
+
+  container.innerHTML = `
+    ${filterHtml}
+    <div class="doc-report multi-framework">${sectionsHtml}</div>
+    <div class="doc-report-actions">
+      <button class="btn-secondary" id="clause-mf-report-copy">Copy as Markdown</button>
+      <button class="btn-secondary" id="clause-mf-report-download">Download .md</button>
     </div>
-  </div>`;
-  
-  container.innerHTML = html;
-  
-  // Attach copy handler for multi-framework
-  container.querySelector(".diff-copy").addEventListener("click", () => {
-    let md = `## ClauseRadar — Comparison (Multi-Framework)\n\n`;
+  `;
+
+  // Attach filter listeners
+  const searchInput = container.querySelector("#clause-mf-report-search");
+  const levelCheckboxes = container.querySelectorAll(".doc-report-level-filters input[type=checkbox]");
+
+  function applyFilters() {
+    const searchTerm = searchInput?.value.toLowerCase() || "";
+    const activeLevels = Array.from(levelCheckboxes)
+      .filter(cb => cb.checked)
+      .map(cb => cb.value);
+
+    const rowElements = container.querySelectorAll("tbody tr");
+    rowElements.forEach(row => {
+      const level = row.dataset.level;
+      const text = row.textContent.toLowerCase();
+      const matchesSearch = !searchTerm || text.includes(searchTerm);
+      const matchesLevel = activeLevels.includes(level);
+      row.style.display = matchesSearch && matchesLevel ? "" : "none";
+    });
+  }
+
+  searchInput?.addEventListener("input", applyFilters);
+  levelCheckboxes.forEach(cb => cb.addEventListener("change", applyFilters));
+
+  // Copy as Markdown
+  container.querySelector("#clause-mf-report-copy")?.addEventListener("click", () => {
+    let md = `## ClauseRadar — Clause Comparison (Multi-Framework)\n\n`;
+    md += `*Changes: ${stats.totalChanges} (Critical: ${stats.byLevel.critical}, Minor: ${stats.byLevel.minor}, Admin: ${stats.byLevel.administrative})*\n\n---\n\n`;
     frameworks.forEach(fw => {
       md += `### ${escapeHtml(fw.framework)}\n\n`;
-      if (!fw.rows || fw.rows.length === 0) {
-        md += `*No significant changes detected.*\n\n`;
-        return;
-      }
-      fw.rows.forEach(row => {
+      (fw.rows || []).forEach(row => {
         md += `#### ${row.clause || "Change"}\n**Impact:** ${row.level}\n\n**Change:** ${row.change}\n`;
         if (row.citation) md += `**Citation:** ${row.citation}\n`;
         if (row.confidence) md += `**Confidence:** ${row.confidence.charAt(0).toUpperCase() + row.confidence.slice(1)}\n`;
@@ -1236,11 +1361,58 @@ function renderMultiFrameworkDiffTable(container, frameworks) {
     });
     md += `*Compared ${new Date().toLocaleString()}*`;
     navigator.clipboard.writeText(md);
-    const btn = container.querySelector(".diff-copy");
-    const orig = btn.textContent;
-    btn.textContent = "Copied!";
-    setTimeout(() => { btn.textContent = orig; }, 1500);
+    flashButton(container.querySelector("#clause-mf-report-copy"), "Copied!");
   });
+
+  // Download as .md file
+  container.querySelector("#clause-mf-report-download")?.addEventListener("click", () => {
+    let md = `## ClauseRadar — Clause Comparison (Multi-Framework)\n\n`;
+    md += `*Changes: ${stats.totalChanges} (Critical: ${stats.byLevel.critical}, Minor: ${stats.byLevel.minor}, Admin: ${stats.byLevel.administrative})*\n\n---\n\n`;
+    frameworks.forEach(fw => {
+      md += `### ${escapeHtml(fw.framework)}\n\n`;
+      (fw.rows || []).forEach(row => {
+        md += `#### ${row.clause || "Change"}\n**Impact:** ${row.level}\n\n**Change:** ${row.change}\n`;
+        if (row.citation) md += `**Citation:** ${row.citation}\n`;
+        if (row.confidence) md += `**Confidence:** ${row.confidence.charAt(0).toUpperCase() + row.confidence.slice(1)}\n`;
+        if (row.borderline) md += `**Borderline:** Yes\n`;
+        if (row.alternativeLevels && row.alternativeLevels.length > 0) md += `**Alternative levels to consider:** ${row.alternativeLevels.join(", ")}\n`;
+        md += `\n---\n`;
+      });
+    });
+    md += `*Compared ${new Date().toLocaleString()}*`;
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `clauseradar-clause-comparison-mf-${new Date().toISOString().slice(0,10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    flashButton(container.querySelector("#clause-mf-report-download"), "Downloaded!");
+  });
+}
+
+function buildDiffTableRowsHtml(rows) {
+  return `
+    <table class="doc-report-section-table">
+      <thead><tr><th>Clause</th><th>What changed</th><th>Impact</th></tr></thead>
+      <tbody>${rows.map(r => {
+        const badge = r.borderline ? `<span class="borderline-badge" title="Borderline classification">⚠</span>` : "";
+        const confidenceLabel = r.confidence ? `<span class="confidence-badge confidence-${r.confidence}">${r.confidence.charAt(0).toUpperCase() + r.confidence.slice(1)}</span>` : "";
+        const altLevels = r.alternativeLevels && r.alternativeLevels.length > 0 
+          ? `<span class="alt-levels-badge" title="Alternative levels to consider">${r.alternativeLevels.join(", ")}</span>` 
+          : "";
+        const citationHtml = r.citation ? `<div class="diff-citation">Citation: ${escapeHtml(r.citation)}</div>` : "";
+        const levelClass = (r.level || "administrative").toLowerCase();
+        return `
+          <tr data-level="${levelClass}">
+            <td>${escapeHtml(r.clause || "")}</td>
+            <td>${escapeHtml(r.change || "")}${citationHtml}</td>
+            <td><span class="diff-tag ${levelClass}">${escapeHtml(r.level || "")}</span> ${badge} ${confidenceLabel} ${altLevels}</td>
+          </tr>
+        `;
+      }).join("")}</tbody>
+    </table>
+  `;
 }
 
 compareRunBtn.addEventListener("click", async () => {
@@ -1251,14 +1423,14 @@ compareRunBtn.addEventListener("click", async () => {
     const textA = compareDocA.value.trim();
     const textB = compareDocB.value.trim();
     if (!textA || !textB) {
-      compareResult.innerHTML = `<p class="status-line error">Paste both the previous and new documents.</p>`;
+      documentResult.innerHTML = `<p class="status-line error">Paste both the previous and new documents.</p>`;
       return;
     }
     compareRunBtn.disabled = true;
-    compareResult.innerHTML = `<p class="status-line">Segmenting and comparing documents\u2026</p>`;
+    documentResult.innerHTML = `<p class="status-line">Segmenting and comparing documents\u2026</p>`;
     try {
       const data = await callBackend({ mode: "diff-doc", textA, textB }, "panel-compare");
-      renderDocReport(compareResult, data);
+      renderDocReport(documentResult, data);
       // Save to history
       await saveHistory({
         type: "diff-doc",
@@ -1268,7 +1440,7 @@ compareRunBtn.addEventListener("click", async () => {
       });
       refreshHistory();
     } catch (err) {
-      compareResult.innerHTML = `<p class="status-line error">${escapeHtml(err.message)}</p>`;
+      documentResult.innerHTML = `<p class="status-line error">${escapeHtml(err.message)}</p>`;
     } finally {
       compareRunBtn.disabled = false;
     }
@@ -1279,14 +1451,14 @@ compareRunBtn.addEventListener("click", async () => {
   const textA = compareA.value.trim();
   const textB = compareB.value.trim();
   if (!textA || !textB) {
-    compareResult.innerHTML = `<p class="status-line error">Paste both the previous and new text.</p>`;
+    clauseResult.innerHTML = `<p class="status-line error">Paste both the previous and new text.</p>`;
     return;
   }
   compareRunBtn.disabled = true;
-  compareResult.innerHTML = `<p class="status-line">Comparing versions\u2026</p>`;
+  clauseResult.innerHTML = `<p class="status-line">Comparing versions\u2026</p>`;
   try {
     const data = await callBackend({ mode: "diff", textA, textB }, "panel-compare");
-    renderDiffTable(compareResult, data);
+    renderDiffTable(clauseResult, data);
     // Save to history
     await saveHistory({
       type: "diff",
@@ -1296,7 +1468,7 @@ compareRunBtn.addEventListener("click", async () => {
     });
     refreshHistory();
   } catch (err) {
-    compareResult.innerHTML = `<p class="status-line error">${escapeHtml(err.message)}</p>`;
+    clauseResult.innerHTML = `<p class="status-line error">${escapeHtml(err.message)}</p>`;
   } finally {
     compareRunBtn.disabled = false;
   }

@@ -1,0 +1,11 @@
+{
+  "appName": {
+    "message": "ClauseRadar"
+  },
+  "appShortName": {
+    "message": "ClauseRadar"
+  },
+  "appDescription": {
+    "message": "Classify regulatory clause impact and compare document versions, right from your browser."
+  }
+}
