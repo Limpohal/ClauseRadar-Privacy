@@ -1,7 +1,5 @@
 // ClauseRadar side panel logic
 
-const DEFAULT_BACKEND = "https://clauseradar.ahali-clauseradar.workers.dev";
-
 // ---------- Tabs ----------
 const tabs = document.querySelectorAll(".tab");
 const panels = {
@@ -30,16 +28,10 @@ async function getDeviceId() {
 }
 
 // ---------- Backend URL ----------
-const BACKEND_URL_KEY = "clauseradar_backend_url";
 const DEFAULT_BACKEND = "https://clauseradar.ahali-clauseradar.workers.dev";
 
-async function getBackendUrl() {
-  const { backendUrl } = await chrome.storage.local.get(BACKEND_URL_KEY);
-  return backendUrl || DEFAULT_BACKEND;
-}
-
-async function saveBackendUrl(url) {
-  await chrome.storage.local.set({ [BACKEND_URL_KEY]: url });
+function getBackendUrl() {
+  return DEFAULT_BACKEND;
 }
 
 // ---------- Framework setting (multi-select) ----------
@@ -795,42 +787,6 @@ loadDrafts();
 // Initialize framework checkboxes for Classify and Compare tabs
 initFrameworkCheckboxes("panel-classify");
 initFrameworkCheckboxes("panel-compare");
-
-// Initialize backend URL input
-const backendUrlInput = document.getElementById("backend-url");
-if (backendUrlInput) {
-  getBackendUrl().then(url => {
-    backendUrlInput.value = url;
-  });
-  backendUrlInput.addEventListener("change", async () => {
-    const url = backendUrlInput.value.trim();
-    if (url) {
-      await saveBackendUrl(url);
-    }
-  });
-}
-
-// "Use Demo Backend" button - pre-fills the shared demo worker URL
-const demoBackendBtn = document.getElementById("use-demo-backend");
-if (demoBackendBtn) {
-  demoBackendBtn.addEventListener("click", async () => {
-    const demoUrl = "https://clauseradar.ahali-clauseradar.workers.dev";
-    backendUrlInput.value = demoUrl;
-    await saveBackendUrl(demoUrl);
-    // Visual feedback
-    const originalText = demoBackendBtn.textContent;
-    demoBackendBtn.textContent = "Set!";
-    demoBackendBtn.style.background = "var(--admin-tint)";
-    demoBackendBtn.style.borderColor = "var(--admin)";
-    demoBackendBtn.style.color = "var(--admin)";
-    setTimeout(() => {
-      demoBackendBtn.textContent = originalText;
-      demoBackendBtn.style.background = "";
-      demoBackendBtn.style.borderColor = "";
-      demoBackendBtn.style.color = "";
-    }, 1500);
-  });
-}
 
 // ---------- Classify tab ----------
 const classifyInput = document.getElementById("classify-input");
