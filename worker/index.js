@@ -11,14 +11,11 @@ const DAILY_LIMIT = 20;
 // is cheapest/fastest at the time you deploy.
 const MODEL = "deepseek/deepseek-v4-flash";
 
-// Known extension ID (update if reinstalling)
-const EXTENSION_ID = "ihhclcjimmnboonghhgaddedaljcedlg";
-const ALLOWED_ORIGIN = `chrome-extension://${EXTENSION_ID}`;
-
 function getCorsHeaders(request) {
   const origin = request.headers.get("Origin") || "";
-  // Strictly allow only the known extension origin
-  const allowOrigin = origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN;
+  // Allow any chrome-extension origin (extension ID changes per install)
+  const isExtensionOrigin = origin.startsWith("chrome-extension://");
+  const allowOrigin = isExtensionOrigin ? origin : "*";
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Headers": "Content-Type, X-Device-Id",

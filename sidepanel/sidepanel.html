@@ -117,6 +117,16 @@
     <!-- SETTINGS -->
     <section id="panel-settings" class="panel" data-active="false">
       <p class="hint">ClauseRadar calls a hosted backend, no personal API key required. You get a limited number of free classifications per day.</p>
+
+      <div class="settings-group" style="margin-bottom: 16px;">
+        <label class="field-label" for="backend-url">Backend URL</label>
+        <input type="url" id="backend-url" class="framework-select" placeholder="https://your-worker.your-subdomain.workers.dev" title="Enter your Cloudflare Worker URL (must have /v1/analyze endpoint)">
+        <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn-secondary" id="use-demo-backend" style="font-size: 10.5px; padding: 6px 10px;">Use Demo Backend</button>
+          <p class="hint" style="margin: 0; align-self: center;">or deploy your own from <code>worker/</code></p>
+        </div>
+      </div>
+
       <div class="quota-box">
         <div class="quota-row">
           <span>Today's usage</span>
