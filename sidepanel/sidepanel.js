@@ -284,6 +284,8 @@ document.querySelectorAll('input[name="compare-mode"]').forEach((radio) => {
     compareHint.textContent = isDocument
       ? "Paste two full documents. They will be auto-segmented into clauses and compared."
       : "Paste the old and new clause text to get a structured, significance-rated comparison.";
+    // Clear previous results when switching modes
+    compareResult.innerHTML = "";
   });
 });
 
