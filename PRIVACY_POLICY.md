@@ -3,7 +3,7 @@
 **Effective Date:** July 28, 2025  
 **Version:** 1.0  
 **Extension Name:** ClauseRadar  
-**Developer:** ahali-clauseradar  
+**Developer:** Halim Ashraf  
 **Contact:** privacy@clauseradar.example.com
 
 ---
