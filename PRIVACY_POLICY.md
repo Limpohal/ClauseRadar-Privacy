@@ -1,6 +1,6 @@
 # ClauseRadar — Privacy Policy
 
-**Effective Date:** July 28, 2025  
+**Effective Date:** July 28, 2026  
 **Version:** 1.0  
 **Extension Name:** ClauseRadar  
 **Developer:** Halim Ashraf  
@@ -89,7 +89,7 @@ Under applicable privacy laws (GDPR, CCPA, etc.), you have the right to:
 - **Delete** — Uninstall the extension or use "Clear history" to remove all local data
 - **Portability** — Export your history as Markdown via the "Copy as Markdown" / "Download .md" buttons
 - **Object/Restrict** — Disable the extension to stop all processing
-- **No automated decisions** — We do not make automated decisions affecting legal rights
+- **Human oversight of AI output** — The AI suggests classifications (Critical/Minor/Administrative), but you retain full control to accept, override, or export results
 
 To exercise these rights, simply use the extension's built-in controls or uninstall it. No account or request process is needed.
 
