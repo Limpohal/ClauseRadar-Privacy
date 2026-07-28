@@ -98,8 +98,8 @@ export default {
       if (!textA || !textA.trim() || !textB || !textB.trim()) {
         return json({ error: "both textA and textB are required and must not be empty" }, 400, corsHeaders);
       }
-      if (textA.length > 50000 || textB.length > 50000) {
-        return json({ error: "text too long (max 50000 characters each for document compare)" }, 400, corsHeaders);
+      if (textA.length > 100000 || textB.length > 100000) {
+        return json({ error: "text too long (max 100000 characters each for document compare)" }, 400, corsHeaders);
       }
     }
 
