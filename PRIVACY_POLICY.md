@@ -4,7 +4,7 @@
 **Version:** 1.0  
 **Extension Name:** ClauseRadar  
 **Developer:** Halim Ashraf  
-**Contact:** privacy@clauseradar.example.com
+**Contact:** ahalim.ashraf@gmail.com
 
 ---
 
