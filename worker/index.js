@@ -108,7 +108,7 @@ export default {
       if (mode === "classify") {
         result = await classify(text, env, selectedFrameworks);
       } else if (mode === "diff") {
-        result = await diff(textA, textB, env, selectedFrameworks);
+        result = await diffMulti(textA, textB, env, selectedFrameworks);
       } else if (mode === "diff-doc") {
         result = await diffDoc(textA, textB, env, selectedFrameworks);
       }
@@ -434,7 +434,7 @@ async function diffForFramework(textA, textB, env, frameworkKey) {
   return callModel(getDiffFrameworkPrompt(frameworkKey), userPrompt, env, "diff");
 }
 
-async function diff(textA, textB, env, frameworks) {
+async function diffMulti(textA, textB, env, frameworks) {
   // If only one framework, return single result for backward compatibility
   if (frameworks.length === 1) {
     const frameworkKey = FRAMEWORK_KEYS[frameworks[0]] || "mdr";
