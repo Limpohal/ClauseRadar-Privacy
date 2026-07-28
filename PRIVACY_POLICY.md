@@ -4,7 +4,7 @@
 **Version:** 1.0  
 **Extension Name:** ClauseRadar  
 **Developer:** Halim Ashraf  
-**Contact:** ahalim.ashraf@gmail.com
+**Contact:** Limpohal@users.noreply.github.com
 
 ---
 
@@ -141,7 +141,7 @@ This extension complies with the [Chrome Web Store Developer Program Policies](h
 
 For questions, concerns, or data requests:
 
-**Email:** ahalim.ashraf@gmail.com  
+**Email:** Limpohal@users.noreply.github.com  
 **GitHub:** https://github.com/Limpohal/ClauseRadar
 
 ---
