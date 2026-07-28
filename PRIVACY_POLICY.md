@@ -141,7 +141,7 @@ This extension complies with the [Chrome Web Store Developer Program Policies](h
 
 For questions, concerns, or data requests:
 
-**Email:** privacy@clauseradar.example.com  
+**Email:** ahalim.ashraf@gmail.com  
 **GitHub:** https://github.com/Limpohal/ClauseRadar
 
 ---
