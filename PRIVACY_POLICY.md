@@ -4,7 +4,7 @@
 **Version:** 1.0  
 **Extension Name:** ClauseRadar  
 **Developer:** ahali-clauseradar  
-**Contact:** [your-email@example.com]
+**Contact:** privacy@clauseradar.example.com
 
 ---
 
@@ -141,7 +141,7 @@ This extension complies with the [Chrome Web Store Developer Program Policies](h
 
 For questions, concerns, or data requests:
 
-**Email:** [your-email@example.com]  
+**Email:** privacy@clauseradar.example.com  
 **GitHub:** https://github.com/Limpohal/ClauseRadar
 
 ---

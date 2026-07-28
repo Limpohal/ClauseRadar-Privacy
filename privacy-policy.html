@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClauseRadar — Privacy Policy</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; }
+    h1 { color: #2c3e50; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; }
+    h2 { color: #34495e; margin-top: 30px; }
+    h3 { color: #2c3e50; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+    th { background: #f8f9fa; font-weight: 600; }
+    tr:nth-child(even) { background: #fafafa; }
+    code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: 'SF Mono', Monaco, monospace; }
+    pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
+    a { color: #0066cc; }
+    .meta { color: #666; font-size: 0.95em; margin-bottom: 30px; }
+    hr { border: none; border-top: 1px solid #eee; margin: 30px 0; }
+    .summary-table { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>ClauseRadar — Privacy Policy</h1>
+  <div class="meta">
+    <strong>Effective Date:</strong> July 28, 2025<br>
+    <strong>Version:</strong> 1.0<br>
+    <strong>Extension Name:</strong> ClauseRadar<br>
+    <strong>Developer:</strong> ahali-clauseradar<br>
+    <strong>Contact:</strong> <a href="mailto:privacy@clauseradar.example.com">privacy@clauseradar.example.com</a>
+  </div>
+
+  <hr>
+
+  <h2>1. Overview</h2>
+  <p>ClauseRadar ("we", "us", "our") is a Chrome browser extension designed for regulatory affairs professionals to classify the significance of regulatory clauses and compare document versions. This Privacy Policy explains what information we collect, how we use it, and your rights regarding your data.</p>
+  <p>We are committed to protecting your privacy. We collect only the minimum data necessary to provide the service, and we do not sell your data to third parties.</p>
+
+  <hr>
+
+  <h2>2. Information We Collect</h2>
+
+  <h3>2.1 Data You Provide Voluntarily</h3>
+  <ul>
+    <li><strong>Clause text you paste or select</strong> — Text you paste into the extension or highlight on web pages for classification/comparison</li>
+    <li><strong>Framework selections</strong> — Your chosen regulatory frameworks (EU MDR, FDA, ISO, etc.)</li>
+  </ul>
+
+  <h3>2.2 Automatically Generated Data</h3>
+  <ul>
+    <li><strong>Anonymous Device ID</strong> — A randomly generated UUID (e.g., <code>550e8400-e29b-41d4-a716-446655440000</code>) created on first install and stored locally in <code>chrome.storage.local</code>. This is used <strong>only</strong> for daily rate limiting (20 requests/day per device).</li>
+    <li><strong>Usage Timestamps</strong> — When you make a classification or comparison request (for rate limit window calculation).</li>
+  </ul>
+
+  <h3>2.3 Data We Do NOT Collect</h3>
+  <ul>
+    <li>❌ No personally identifiable information (name, email, IP address, location)</li>
+    <li>❌ No browsing history or web activity</li>
+    <li>❌ No authentication credentials or account data</li>
+    <li>❌ No clipboard contents beyond what you explicitly paste into the extension</li>
+    <li>❌ No analytics, tracking, or advertising identifiers</li>
+  </ul>
+
+  <hr>
+
+  <h2>3. How We Use Your Data</h2>
+
+  <table>
+    <thead>
+      <tr><th>Data Type</th><th>Purpose</th><th>Legal Basis</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Clause text</td><td>Send to backend for AI classification/comparison via OpenRouter</td><td>Legitimate interest (providing requested service)</td></tr>
+      <tr><td>Framework selection</td><td>Tailor AI prompts to selected regulatory context</td><td>Legitimate interest</td></tr>
+      <tr><td>Device ID</td><td>Enforce daily rate limit (20 requests/day)</td><td>Legitimate interest (abuse prevention)</td></tr>
+      <tr><td>Timestamps</td><td>Calculate 24-hour rate limit windows</td><td>Legitimate interest</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>We do not use your data for:</strong> advertising, profiling, marketing, selling to third parties, or any purpose beyond providing the classification/comparison service.</p>
+
+  <hr>
+
+  <h2>4. Data Sharing & Third Parties</h2>
+
+  <h3>4.1 Our Backend (Cloudflare Workers)</h3>
+  <ul>
+    <li><strong>Provider:</strong> Cloudflare, Inc.</li>
+    <li><strong>Data sent:</strong> Clause text, framework selection, anonymous device ID</li>
+    <li><strong>Purpose:</strong> Process classification/comparison requests, enforce rate limits</li>
+    <li><strong>Retention:</strong> Request counters expire after 2 days. Clause text is <strong>not stored</strong> server-side beyond the request lifecycle.</li>
+  </ul>
+
+  <h3>4.2 AI Model Provider (OpenRouter)</h3>
+  <ul>
+    <li><strong>Provider:</strong> OpenRouter (<a href="https://openrouter.ai">openrouter.ai</a>)</li>
+    <li><strong>Data sent:</strong> Clause text + framework-specific prompt (no device ID, no user identity)</li>
+    <li><strong>Purpose:</strong> Generate classification/comparison results</li>
+    <li><strong>Policy:</strong> See <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener">OpenRouter Privacy Policy</a></li>
+    <li><strong>Note:</strong> We use the <code>deepseek/deepseek-v4-flash</code> model. OpenRouter acts as a gateway; we do not control their sub-processors.</li>
+  </ul>
+
+  <h3>4.3 No Other Sharing</h3>
+  <p>We do not share data with any other third parties, advertisers, data brokers, or analytics providers.</p>
+
+  <hr>
+
+  <h2>5. Data Storage & Retention</h2>
+
+  <table>
+    <thead>
+      <tr><th>Storage Location</th><th>Data</th><th>Retention</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Local (<code>chrome.storage.local</code>)</strong></td><td>Device ID, draft text, history (last 50 items), framework preferences</td><td>Until you uninstall the extension or clear browser data</td></tr>
+      <tr><td><strong>Backend (Cloudflare KV)</strong></td><td>Daily request counter per device ID</td><td>2 days (auto-expires)</td></tr>
+      <tr><td><strong>Backend (Memory)</strong></td><td>Clause text during request processing</td><td>Milliseconds (request lifecycle only)</td></tr>
+      <tr><td><strong>OpenRouter</strong></td><td>Per their policy</td><td>Per <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener">OpenRouter Privacy Policy</a></td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>You can clear all local data anytime:</strong> Chrome → Extensions → ClauseRadar → Details → "Clear storage" or use the "Clear history" button in the extension's History tab.</p>
+
+  <hr>
+
+  <h2>6. Your Rights</h2>
+
+  <p>Under applicable privacy laws (GDPR, CCPA, etc.), you have the right to:</p>
+  <ul>
+    <li><strong>Access</strong> — Know what data we hold (this policy + local storage inspection)</li>
+    <li><strong>Delete</strong> — Uninstall the extension or use "Clear history" to remove all local data</li>
+    <li><strong>Portability</strong> — Export your history as Markdown via the "Copy as Markdown" / "Download .md" buttons</li>
+    <li><strong>Object/Restrict</strong> — Disable the extension to stop all processing</li>
+    <li><strong>No automated decisions</strong> — We do not make automated decisions affecting legal rights</li>
+  </ul>
+  <p>To exercise these rights, simply use the extension's built-in controls or uninstall it. No account or request process is needed.</p>
+
+  <hr>
+
+  <h2>7. Children's Privacy</h2>
+  <p>ClauseRadar is not directed to children under 13 (or 16 in the EU). We do not knowingly collect data from children. If you believe a child has provided data, contact us and we will delete it.</p>
+
+  <hr>
+
+  <h2>8. Security</h2>
+  <ul>
+    <li>All network communication uses HTTPS (TLS 1.2+)</li>
+    <li>No credentials or API keys stored in the extension (OpenRouter key is server-side only)</li>
+    <li>Device ID is a random UUID, not derived from hardware or personal info</li>
+    <li>Content Security Policy restricts extension scripts to <code>self</code> only</li>
+  </ul>
+
+  <hr>
+
+  <h2>9. International Transfers</h2>
+  <p>Your clause text is sent to:</p>
+  <ul>
+    <li>Cloudflare Workers (global edge network — data may process in any Cloudflare data center)</li>
+    <li>OpenRouter (US-based, may use global model providers)</li>
+  </ul>
+  <p>By using the extension, you consent to this transfer. Both providers maintain appropriate safeguards.</p>
+
+  <hr>
+
+  <h2>10. Changes to This Policy</h2>
+  <p>We may update this policy occasionally. Material changes will be noted in the extension's changelog or via a notification. Continued use after changes constitutes acceptance.</p>
+
+  <hr>
+
+  <h2>11. Chrome Web Store Compliance</h2>
+  <p>This extension complies with the <a href="https://developer.chrome.com/docs/webstore/program-policies/" target="_blank" rel="noopener">Chrome Web Store Developer Program Policies</a>:</p>
+  <ul>
+    <li><strong>Single Purpose:</strong> Clear, narrow functionality (regulatory clause classification/comparison)</li>
+    <li><strong>Minimal Permissions:</strong> Only <code>contextMenus</code>, <code>sidePanel</code>, <code>storage</code>, <code>activeTab</code>, <code>scripting</code></li>
+    <li><strong>Narrow Host Permissions:</strong> Only <code>https://clauseradar.ahali-clauseradar.workers.dev/*</code></li>
+    <li><strong>No Deceptive Practices:</strong> No hidden behavior, no data selling, no misleading UI</li>
+    <li><strong>Privacy Policy:</strong> This document, accessible via store listing</li>
+  </ul>
+
+  <hr>
+
+  <h2>12. Contact</h2>
+  <p>For questions, concerns, or data requests:</p>
+  <p><strong>Email:</strong> <a href="mailto:privacy@clauseradar.example.com">privacy@clauseradar.example.com</a><br>
+  <strong>GitHub:</strong> <a href="https://github.com/Limpohal/ClauseRadar" target="_blank" rel="noopener">https://github.com/Limpohal/ClauseRadar</a></p>
+
+  <hr>
+
+  <h2>13. Summary for Users</h2>
+
+  <table class="summary-table">
+    <thead>
+      <tr><th>What Happens to Your Clause Text?</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1. You paste/select text in the extension</td></tr>
+      <tr><td>2. Text + framework choice sent to our Cloudflare Worker (HTTPS)</td></tr>
+      <tr><td>3. Worker checks daily limit (anonymous device ID)</td></tr>
+      <tr><td>4. Worker forwards text + prompt to OpenRouter (HTTPS)</td></tr>
+      <tr><td>5. AI returns classification/comparison</td></tr>
+      <tr><td>6. Result shown to you; <strong>text discarded from server</strong></td></tr>
+      <tr><td>7. Only a counter (device ID + date) stays in KV for 2 days</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>You own your data. We process it only to give you the result you asked for.</strong></p>
+</body>
+</html>
