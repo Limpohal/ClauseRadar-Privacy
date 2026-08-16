@@ -19,13 +19,14 @@
     .meta { color: #666; font-size: 0.95em; margin-bottom: 30px; }
     hr { border: none; border-top: 1px solid #eee; margin: 30px 0; }
     .summary-table { margin-top: 20px; }
+    .updated { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 15px; margin: 20px 0; border-radius: 4px; }
   </style>
 </head>
 <body>
   <h1>ClauseRadar — Privacy Policy</h1>
   <div class="meta">
-    <strong>Effective Date:</strong> July 28, 2026<br>
-    <strong>Version:</strong> 1.0<br>
+    <strong>Effective Date:</strong> August 16, 2026<br>
+    <strong>Version:</strong> 1.1<br>
     <strong>Extension Name:</strong> ClauseRadar<br>
     <strong>Developer:</strong> Halim Ashraf<br>
     <strong>Contact:</strong> <a href="mailto:Limpohal@users.noreply.github.com">Limpohal@users.noreply.github.com</a>
@@ -82,9 +83,9 @@
 
   <hr>
 
-  <h2>4. Data Sharing & Third Parties</h2>
+  <h2>4. Data Sharing &amp; Third Parties</h2>
 
-  <h3>4.1 Our Backend (Cloudflare Workers)</h3>
+  <h3>4.1 Primary Backend (Cloudflare Workers)</h3>
   <ul>
     <li><strong>Provider:</strong> Cloudflare, Inc.</li>
     <li><strong>Data sent:</strong> Clause text, framework selection, anonymous device ID</li>
@@ -92,21 +93,29 @@
     <li><strong>Retention:</strong> Request counters expire after 2 days. Clause text is <strong>not stored</strong> server-side beyond the request lifecycle.</li>
   </ul>
 
-  <h3>4.2 AI Model Provider (OpenRouter)</h3>
+  <h3>4.2 Fallback Backend (Vercel)</h3>
+  <ul>
+    <li><strong>Provider:</strong> Vercel Inc.</li>
+    <li><strong>Data sent:</strong> Clause text, framework selection, anonymous device ID</li>
+    <li><strong>Purpose:</strong> Process classification/comparison requests as a fallback when the primary backend is unreachable (e.g., corporate network restrictions). The extension automatically falls back to Vercel if the Cloudflare Worker fails.</li>
+    <li><strong>Retention:</strong> Rate limit counters are stored in-memory only and reset when the serverless function is recycled. Clause text is <strong>not stored</strong> beyond the request lifecycle.</li>
+  </ul>
+
+  <h3>4.3 AI Model Provider (OpenRouter)</h3>
   <ul>
     <li><strong>Provider:</strong> OpenRouter (<a href="https://openrouter.ai">openrouter.ai</a>)</li>
     <li><strong>Data sent:</strong> Clause text + framework-specific prompt (no device ID, no user identity)</li>
     <li><strong>Purpose:</strong> Generate classification/comparison results</li>
     <li><strong>Policy:</strong> See <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener">OpenRouter Privacy Policy</a></li>
-    <li><strong>Note:</strong> We use the <code>deepseek/deepseek-v4-flash</code> model. OpenRouter acts as a gateway; we do not control their sub-processors.</li>
+    <li><strong>Note:</strong> We use the <code>openai/gpt-5.6-luna</code> model via OpenRouter. OpenRouter acts as a gateway; we do not control their sub-processors.</li>
   </ul>
 
-  <h3>4.3 No Other Sharing</h3>
+  <h3>4.4 No Other Sharing</h3>
   <p>We do not share data with any other third parties, advertisers, data brokers, or analytics providers.</p>
 
   <hr>
 
-  <h2>5. Data Storage & Retention</h2>
+  <h2>5. Data Storage &amp; Retention</h2>
 
   <table>
     <thead>
@@ -114,8 +123,9 @@
     </thead>
     <tbody>
       <tr><td><strong>Local (<code>chrome.storage.local</code>)</strong></td><td>Device ID, draft text, history (last 50 items), framework preferences</td><td>Until you uninstall the extension or clear browser data</td></tr>
-      <tr><td><strong>Backend (Cloudflare KV)</strong></td><td>Daily request counter per device ID</td><td>2 days (auto-expires)</td></tr>
-      <tr><td><strong>Backend (Memory)</strong></td><td>Clause text during request processing</td><td>Milliseconds (request lifecycle only)</td></tr>
+      <tr><td><strong>Primary Backend (Cloudflare KV)</strong></td><td>Daily request counter per device ID</td><td>2 days (auto-expires)</td></tr>
+      <tr><td><strong>Fallback Backend (Vercel — memory)</strong></td><td>Daily request counter per device ID</td><td>In-memory, resets on function recycle (no persistent storage)</td></tr>
+      <tr><td><strong>Backend (Memory — both providers)</strong></td><td>Clause text during request processing</td><td>Milliseconds (request lifecycle only)</td></tr>
       <tr><td><strong>OpenRouter</strong></td><td>Per their policy</td><td>Per <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener">OpenRouter Privacy Policy</a></td></tr>
     </tbody>
   </table>
@@ -146,9 +156,10 @@
   <h2>8. Security</h2>
   <ul>
     <li>All network communication uses HTTPS (TLS 1.2+)</li>
-    <li>No credentials or API keys stored in the extension (OpenRouter key is server-side only)</li>
+    <li>No credentials or API keys stored in the extension (OpenRouter key is server-side only — set as environment variables on Cloudflare Workers and Vercel)</li>
+    <li>API keys are stored as platform secrets (<code>wrangler secret</code> / Vercel environment variables), never committed to source code</li>
     <li>Device ID is a random UUID, not derived from hardware or personal info</li>
-    <li>Content Security Policy restricts extension scripts to <code>self</code> only</li>
+    <li>Content Security Policy restricts extension scripts to <code>self</code> and known backend endpoints only</li>
   </ul>
 
   <hr>
@@ -157,9 +168,10 @@
   <p>Your clause text is sent to:</p>
   <ul>
     <li>Cloudflare Workers (global edge network — data may process in any Cloudflare data center)</li>
+    <li>Vercel (global edge network via AWS/Lambda — US and EU regions)</li>
     <li>OpenRouter (US-based, may use global model providers)</li>
   </ul>
-  <p>By using the extension, you consent to this transfer. Both providers maintain appropriate safeguards.</p>
+  <p>By using the extension, you consent to this transfer. All providers maintain appropriate safeguards.</p>
 
   <hr>
 
@@ -173,7 +185,7 @@
   <ul>
     <li><strong>Single Purpose:</strong> Clear, narrow functionality (regulatory clause classification/comparison)</li>
     <li><strong>Minimal Permissions:</strong> Only <code>contextMenus</code>, <code>sidePanel</code>, <code>storage</code>, <code>activeTab</code>, <code>scripting</code></li>
-    <li><strong>Narrow Host Permissions:</strong> Only <code>https://clauseradar.ahali-clauseradar.workers.dev/*</code></li>
+    <li><strong>Narrow Host Permissions:</strong> Only <code>https://clauseradar.ahali-clauseradar.workers.dev/*</code> and <code>https://vercel-fallback-neon.vercel.app/*</code></li>
     <li><strong>No Deceptive Practices:</strong> No hidden behavior, no data selling, no misleading UI</li>
     <li><strong>Privacy Policy:</strong> This document, accessible via store listing</li>
   </ul>
@@ -195,12 +207,13 @@
     </thead>
     <tbody>
       <tr><td>1. You paste/select text in the extension</td></tr>
-      <tr><td>2. Text + framework choice sent to our Cloudflare Worker (HTTPS)</td></tr>
-      <tr><td>3. Worker checks daily limit (anonymous device ID)</td></tr>
-      <tr><td>4. Worker forwards text + prompt to OpenRouter (HTTPS)</td></tr>
-      <tr><td>5. AI returns classification/comparison</td></tr>
-      <tr><td>6. Result shown to you; <strong>text discarded from server</strong></td></tr>
-      <tr><td>7. Only a counter (device ID + date) stays in KV for 2 days</td></tr>
+      <tr><td>2. Text + framework choice sent to our backend (HTTPS)</td></tr>
+      <tr><td>3. Primary Cloudflare Worker handles the request (auto-failover to Vercel fallback if unreachable)</td></tr>
+      <tr><td>4. Backend checks daily limit (anonymous device ID)</td></tr>
+      <tr><td>5. Backend forwards text + prompt to OpenRouter (using <code>openai/gpt-5.6-luna</code>)</td></tr>
+      <tr><td>6. AI returns classification/comparison</td></tr>
+      <tr><td>7. Result shown to you; <strong>text discarded from server</strong></td></tr>
+      <tr><td>8. Only a counter (device ID + date) stays in KV (Cloudflare) or memory (Vercel) for up to 2 days</td></tr>
     </tbody>
   </table>
 
