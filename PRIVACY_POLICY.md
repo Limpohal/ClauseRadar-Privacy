@@ -1,7 +1,7 @@
 # ClauseRadar — Privacy Policy
 
-**Effective Date:** July 28, 2026  
-**Version:** 1.0  
+**Effective Date:** August 28, 2026  
+**Version:** 1.2  
 **Extension Name:** ClauseRadar  
 **Developer:** Halim Ashraf  
 **Contact:** Limpohal@users.noreply.github.com
@@ -23,8 +23,9 @@ We are committed to protecting your privacy. We collect only the minimum data ne
 - **Framework selections** — Your chosen regulatory frameworks (EU MDR, FDA, ISO, etc.)
 
 ### 2.2 Automatically Generated Data
-- **Anonymous Device ID** — A randomly generated UUID (e.g., `550e8400-e29b-41d4-a716-446655440000`) created on first install and stored locally in `chrome.storage.local`. This is used **only** for daily rate limiting (20 requests/day per device).
+- **Anonymous Device ID** — A randomly generated UUID (e.g., `550e8400-e29b-41d4-a716-446655440000`) created on first install and stored locally in `chrome.storage.local`. This is used **only** for rate limiting (20 requests/day per device, plus a global daily service-capacity limit shared across all users to control infrastructure costs).
 - **Usage Timestamps** — When you make a classification or comparison request (for rate limit window calculation).
+- **Global Service-Capacity Counter** — A daily, date-keyed counter of total AI model calls across all users (a number only — no device ID, no clause text). Enforces the service-wide capacity limit that protects against abuse and keeps the service free.
 
 ### 2.3 Data We Do NOT Collect
 - ❌ No personally identifiable information (name, email, IP address, location)
@@ -42,6 +43,7 @@ We are committed to protecting your privacy. We collect only the minimum data ne
 | Clause text | Send to backend for AI classification/comparison via OpenRouter | Legitimate interest (providing requested service) |
 | Framework selection | Tailor AI prompts to selected regulatory context | Legitimate interest |
 | Device ID | Enforce daily rate limit (20 requests/day) | Legitimate interest (abuse prevention) |
+| Global capacity counter (anonymous number) | Enforce the daily service-wide AI-call budget | Legitimate interest (abuse prevention, cost control) |
 | Timestamps | Calculate 24-hour rate limit windows | Legitimate interest |
 
 **We do not use your data for:** advertising, profiling, marketing, selling to third parties, or any purpose beyond providing the classification/comparison service.
