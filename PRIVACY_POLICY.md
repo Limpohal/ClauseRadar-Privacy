@@ -63,7 +63,7 @@ We are committed to protecting your privacy. We collect only the minimum data ne
 - **Data sent:** Clause text + framework-specific prompt (no device ID, no user identity)
 - **Purpose:** Generate classification/comparison results
 - **Policy:** See [OpenRouter Privacy Policy](https://openrouter.ai/privacy)
-- **Note:** We use the `deepseek/deepseek-v4-flash` model. OpenRouter acts as a gateway; we do not control their sub-processors.
+- **Note:** We use the `openai/gpt-5.6-luna` model. OpenRouter acts as a gateway; we do not control their sub-processors.
 
 ### 4.3 No Other Sharing
 We do not share data with any other third parties, advertisers, data brokers, or analytics providers.
