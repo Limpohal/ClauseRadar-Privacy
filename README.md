@@ -63,7 +63,7 @@ For document comparison:
 |-----------|------------|
 | **Extension** | Chrome MV3 (Manifest V3), Side Panel API, Service Worker |
 | **Backend** | Cloudflare Workers (TypeScript) |
-| **AI Model** | OpenRouter → `openai/gpt-5.6-luna` |
+| **AI Model** | OpenRouter → `anthropic/claude-haiku-5.5` |
 | **Rate Limiting** | Cloudflare KV (anonymous, per-device, 20/day) |
 | **PDF/DOCX** | pdf.js + mammoth.js (client-side) |
 

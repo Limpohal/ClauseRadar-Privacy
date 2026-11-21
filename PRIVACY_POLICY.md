@@ -1,7 +1,7 @@
 # ClauseRadar — Privacy Policy
 
-**Effective Date:** August 28, 2026  
-**Version:** 1.2  
+**Effective Date:** November 22, 2026  
+**Version:** 2.0  
 **Extension Name:** ClauseRadar  
 **Developer:** Halim Ashraf  
 **Contact:** Limpohal@users.noreply.github.com
@@ -10,7 +10,7 @@
 
 ## 1. Overview
 
-ClauseRadar ("we", "us", "our") is a Chrome browser extension designed for regulatory affairs professionals to classify the significance of regulatory clauses and compare document versions. This Privacy Policy explains what information we collect, how we use it, and your rights regarding your data.
+ClauseRadar ("we", "us", "our") is a Chrome browser extension for regulatory affairs professionals in any regulated industry. It performs three kinds of analysis on text you supply: it **classifies** the significance of a clause, it **compares** two versions of a clause or document, and it performs a **gap analysis** between a regulatory requirement and your own documentation. It supports 16 regulatory frameworks, and you may define a custom framework of your own. This Privacy Policy explains what information we collect, how we use it, and your rights regarding your data.
 
 We are committed to protecting your privacy. We collect only the minimum data necessary to provide the service, and we do not sell your data to third parties.
 
@@ -20,7 +20,9 @@ We are committed to protecting your privacy. We collect only the minimum data ne
 
 ### 2.1 Data You Provide Voluntarily
 - **Clause text you paste or select** — Text you paste into the extension or highlight on web pages for classification/comparison
-- **Framework selections** — Your chosen regulatory frameworks (EU MDR, FDA, ISO, etc.)
+- **Framework selections** — The framework or frameworks you choose for a run (e.g. EU MDR, FDA 21 CFR Part 820, ISO 13485, ISO 9001, EU GMP)
+- **Custom framework definition** — If you define your own framework, the name and criteria you type. Stored only on your device and sent solely so the analysis can apply your criteria; never retained server-side
+- **Batch clause set** — Up to 10 individual clauses per batch request, each processed independently
 
 ### 2.2 Automatically Generated Data
 - **Anonymous Device ID** — A randomly generated UUID (e.g., `550e8400-e29b-41d4-a716-446655440000`) created on first install and stored locally in `chrome.storage.local`. This is used **only** for rate limiting (20 requests/day per device, plus a global daily service-capacity limit shared across all users to control infrastructure costs).
@@ -54,7 +56,7 @@ We are committed to protecting your privacy. We collect only the minimum data ne
 
 ### 4.1 Our Backend (Cloudflare Workers)
 - **Provider:** Cloudflare, Inc.
-- **Data sent:** Clause text, framework selection, anonymous device ID
+- **Data sent:** The text you submitted, your framework selection (or custom criteria), and the anonymous device ID
 - **Purpose:** Process classification/comparison requests, enforce rate limits
 - **Retention:** Request counters expire after 2 days. Clause text is **not stored** server-side beyond the request lifecycle.
 
@@ -63,7 +65,7 @@ We are committed to protecting your privacy. We collect only the minimum data ne
 - **Data sent:** Clause text + framework-specific prompt (no device ID, no user identity)
 - **Purpose:** Generate classification/comparison results
 - **Policy:** See [OpenRouter Privacy Policy](https://openrouter.ai/privacy)
-- **Note:** We use the `openai/gpt-5.6-luna` model. OpenRouter acts as a gateway; we do not control their sub-processors.
+- **Note:** We use the `anthropic/claude-haiku-5.5` model (Anthropic). The model name is recorded in the metadata of any JSON/CSV export you make. OpenRouter acts as a gateway; we do not control their sub-processors.
 
 ### 4.3 No Other Sharing
 We do not share data with any other third parties, advertisers, data brokers, or analytics providers.
