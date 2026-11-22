@@ -10,7 +10,7 @@
 
 ## 1. Overview
 
-ClauseRadar ("we", "us", "our") is a Chrome browser extension for regulatory affairs professionals in any regulated industry. It performs three kinds of analysis on text you supply: it **classifies** the significance of a clause, it **compares** two versions of a clause or document, and it performs a **gap analysis** between a regulatory requirement and your own documentation. It supports 16 regulatory frameworks, and you may define a custom framework of your own. This Privacy Policy explains what information we collect, how we use it, and your rights regarding your data.
+ClauseRadar ("we", "us", "our") is a Chrome browser extension for regulatory affairs professionals in any regulated industry. It performs three kinds of analysis on public regulatory text you supply: it **classifies** the significance of a clause, it **compares** two versions of a clause or document, and it **builds a requirement checklist** from a regulation clause. **Your own procedures, SOPs and policies are never sent to us or to any model provider** — the checklist feature analyses only the public requirement, and you record coverage yourself on your own device. It supports 16 regulatory frameworks, and you may define a custom framework of your own. This Privacy Policy explains what information we collect, how we use it, and your rights regarding your data.
 
 We are committed to protecting your privacy. We collect only the minimum data necessary to provide the service, and we do not sell your data to third parties.
 
@@ -22,7 +22,8 @@ We are committed to protecting your privacy. We collect only the minimum data ne
 - **Clause text you paste or select** — Text you paste into the extension or highlight on web pages for classification/comparison
 - **Framework selections** — The framework or frameworks you choose for a run (e.g. EU MDR, FDA 21 CFR Part 820, ISO 13485, ISO 9001, EU GMP)
 - **Custom framework definition** — If you define your own framework, the name and criteria you type. Stored only on your device and sent solely so the analysis can apply your criteria; never retained server-side
-- **Batch clause set** — Up to 10 individual clauses per batch request, each processed independently
+- **Your own documentation — never collected or sent.** The extension has no field that transmits internal procedures, SOPs or policies
+- **Checklist assessment** — The coverage status and notes you mark per requirement element. Stored only on your device and in exports you create; never transmitted
 
 ### 2.2 Automatically Generated Data
 - **Anonymous Device ID** — A randomly generated UUID (e.g., `550e8400-e29b-41d4-a716-446655440000`) created on first install and stored locally in `chrome.storage.local`. This is used **only** for rate limiting (20 requests/day per device, plus a global daily service-capacity limit shared across all users to control infrastructure costs).

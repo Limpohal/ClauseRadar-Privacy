@@ -35,7 +35,7 @@
   <hr>
 
   <h2>1. Overview</h2>
-  <p>ClauseRadar ("we", "us", "our") is a Chrome browser extension for regulatory affairs professionals in any regulated industry. It performs three kinds of analysis on text you supply: it <strong>classifies</strong> the significance of a clause, it <strong>compares</strong> two versions of a clause or document, and it performs a <strong>gap analysis</strong> between a regulatory requirement and your own documentation. It supports 16 regulatory frameworks, and you may define a custom framework of your own. This Privacy Policy explains what information we collect, how we use it, and your rights regarding your data.</p>
+  <p>ClauseRadar ("we", "us", "our") is a Chrome browser extension for regulatory affairs professionals in any regulated industry. It performs three kinds of analysis on public regulatory text you supply: it <strong>classifies</strong> the significance of a clause, it <strong>compares</strong> two versions of a clause or document, and it <strong>builds a requirement checklist</strong> from a regulation clause. It supports 16 regulatory frameworks, and you may define a custom framework of your own. <strong>Your own procedures, SOPs and policies are never sent to us or to any model provider</strong> — the checklist feature analyses only the public requirement, and you record coverage yourself on your own device. This Privacy Policy explains what information we collect, how we use it, and your rights regarding your data.</p>
   <p>We are committed to protecting your privacy. We collect only the minimum data necessary to provide the service, and we do not sell your data to third parties.</p>
 
   <hr>
@@ -44,15 +44,16 @@
 
   <h3>2.1 Data You Provide Voluntarily</h3>
   <ul>
-    <li><strong>Text you paste or select</strong> — The clause text you paste into the extension or highlight on a web page, the two versions you ask us to compare, or (for gap analysis) the requirement and your own document excerpt. Only text you deliberately submit is sent.</li>
+    <li><strong>Public regulatory text you paste or select</strong> — The clause text you paste into the extension or highlight on a web page, the two versions you ask us to compare, or the regulation requirement you ask us to break into a checklist. Only text you deliberately submit is sent.</li>
+    <li><strong>Your own documentation — never collected or sent.</strong> The extension has no field that transmits your internal procedures, SOPs or policies. In checklist mode you compare them against the generated checklist yourself and record coverage locally.</li>
     <li><strong>Framework selections</strong> — The regulatory framework or frameworks you choose for a run (for example EU MDR, FDA 21 CFR Part 820, ISO 13485, ISO 9001, EU GMP).</li>
     <li><strong>Custom framework definition</strong> — If you define your own framework, the name and the Critical / Minor / Administrative criteria you type. This is stored <strong>only on your device</strong> and sent with a request solely so the analysis can apply your criteria. It is not retained server-side.</li>
-    <li><strong>Batch clause set</strong> — If you use batch classification, the individual clauses you submit (up to 10 per request). Each is processed independently.</li>
+    <li><strong>Checklist assessment</strong> — The coverage status you mark for each requirement element, and any note you type. This is stored <strong>only on your device</strong> (and in any export you create); it is never transmitted.</li>
   </ul>
 
   <h3>2.2 Automatically Generated Data</h3>
   <ul>
-    <li><strong>Anonymous Device ID</strong> — A randomly generated UUID (e.g., <code>550e8400-e29b-41d4-a716-446655440000</code>) created on first install and stored locally in <code>chrome.storage.local</code>. This is used <strong>only</strong> for rate limiting (20 classifications/day per device — a batch counts one per clause — plus a global daily service-capacity limit shared across all users to control infrastructure costs).</li>
+    <li><strong>Anonymous Device ID</strong> — A randomly generated UUID (e.g., <code>550e8400-e29b-41d4-a716-446655440000</code>) created on first install and stored locally in <code>chrome.storage.local</code>. This is used <strong>only</strong> for rate limiting (20 requests/day per device, plus a global daily service-capacity limit shared across all users to control infrastructure costs).</li>
     <li><strong>Usage Timestamps</strong> — When you make a classification or comparison request (for rate limit window calculation).</li>
 <li><strong>Global Service-Capacity Counter</strong> — A daily, date-keyed counter of total AI model calls across all users (a number only — no device ID, no clause text). Enforces the service-wide capacity limit that protects against abuse and keeps the service free.</li>
   </ul>
@@ -93,7 +94,7 @@
   <ul>
     <li><strong>Provider:</strong> Cloudflare, Inc.</li>
     <li><strong>Data sent:</strong> The text you submitted, your framework selection (or custom criteria), and the anonymous device ID</li>
-    <li><strong>Purpose:</strong> Process classification, comparison and gap-analysis requests; enforce rate limits</li>
+    <li><strong>Purpose:</strong> Process classification, comparison and checklist requests; enforce rate limits</li>
     <li><strong>Retention:</strong> Request counters expire after 2 days. Clause text is <strong>not stored</strong> server-side beyond the request lifecycle.</li>
   </ul>
 
@@ -109,7 +110,7 @@
   <ul>
     <li><strong>Provider:</strong> OpenRouter (<a href="https://openrouter.ai">openrouter.ai</a>)</li>
     <li><strong>Data sent:</strong> Your text plus the framework-specific instruction prompt (no device ID, no user identity)</li>
-    <li><strong>Purpose:</strong> Generate classification, comparison and gap-analysis results</li>
+    <li><strong>Purpose:</strong> Generate classification, comparison and checklist results</li>
     <li><strong>Policy:</strong> See <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener">OpenRouter Privacy Policy</a></li>
     <li><strong>Note:</strong> We use the <code>anthropic/claude-haiku-5.5</code> model (Anthropic) via OpenRouter. OpenRouter acts as a gateway; we do not control their sub-processors.</li>
   </ul>
@@ -212,12 +213,13 @@
     <tbody>
       <tr><td>1. You paste/select text in the extension</td></tr>
       <tr><td>2. Text + framework choice sent to our backend (HTTPS)</td></tr>
-      <tr><td>2a. For gap analysis the requirement and your document excerpt are sent; for batch, up to 10 clauses</td></tr>
+      <tr><td>2a. For a checklist, only the public regulation requirement is sent — never your own document</td></tr>
       <tr><td>3. Primary Cloudflare Worker handles the request (auto-failover to Vercel fallback if unreachable)</td></tr>
       <tr><td>4. Backend checks daily limit (anonymous device ID)</td></tr>
       <tr><td>5. Backend forwards text + prompt to OpenRouter (using <code>anthropic/claude-haiku-5.5</code>)</td></tr>
-      <tr><td>6. AI returns the classification / comparison / gap result</td></tr>
+      <tr><td>6. AI returns the classification / comparison / checklist result</td></tr>
       <tr><td>7. Result shown to you; <strong>text discarded from server</strong></td></tr>
+      <tr><td>7a. In checklist mode you mark coverage against your own document locally — nothing about it is sent</td></tr>
       <tr><td>8. Only a counter (device ID + date) stays in KV (Cloudflare) or memory (Vercel) for up to 2 days</td></tr>
       <tr><td>9. Exports (Markdown, JSON, CSV) are generated on your device — nothing is uploaded</td></tr>
     </tbody>
